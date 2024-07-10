@@ -16,7 +16,6 @@ type Node struct {
 	Port    int
 	K       int
 	Buckets []KBucket
-	//RoutingTable *RoutingTable
 }
 
 func NewNode(IP string, Port int) Node {
@@ -24,9 +23,8 @@ func NewNode(IP string, Port int) Node {
 	buckets := make([]KBucket, 160)
 	return Node{
 		IP: IP, Port: Port,
-		ID:           HashToBigInt(addressHash),
-		Buckets:      buckets,
-		RoutingTable: NewRoutingTable(1),
+		ID:      HashToBigInt(addressHash),
+		Buckets: buckets,
 	}
 }
 
@@ -36,14 +34,6 @@ func (n Node) String() string {
 
 func (n Node) Xor(other Node) *big.Int {
 	return new(big.Int).Xor(n.ID, other.ID)
-}
-
-func (n Node) UpdateBucket(position int, node Node) {
-	//bucket := n.Buckets[position]
-	//bucket.Append(node)
-	//n.Buckets[position].Append(node)
-
-	n.RoutingTable.Add(node)
 }
 
 func RandNumber() *big.Int {

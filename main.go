@@ -33,8 +33,6 @@ func main() {
 	serverSeven.Listen()
 	serverEight.Listen()
 	serverNine.Listen()
-	//server.Node.RoutingTable.Add(server.Node)
-	//serverTwo.Node.RoutingTable.Add(serverTwo.Node)
 	err := server.Ping(serverTwo)
 	err = server.Ping(serverThree)
 	err = server.Ping(serverFour)
@@ -48,7 +46,7 @@ func main() {
 	}
 	//fmt.Println(server.Node.Buckets[1].String())
 	fmt.Println("Root:")
-	fmt.Println(server.Node.RoutingTable.String())
+	fmt.Println(server.RoutingTable.String())
 	//fmt.Println(serverTwo.Node.RoutingTable)
 	//fmt.Println(server.Node.Buckets[1].String())
 	//fmt.Println(serverTwo.Node.Buckets[1].String())

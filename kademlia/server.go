@@ -19,12 +19,17 @@ type Server struct {
 func NewServer(IP string, Port int) Server {
 	n := NewNode(IP, Port)
 	rpcServer := rpc.NewServer()
-	err := rpcServer.Register(&n)
+	s := Server{
+		Node:         n,
+		rpcServer:    rpcServer,
+		DataStore:    make(map[string][]byte),
+		RoutingTable: NewRoutingTable(1),
+	}
+	err := rpcServer.Register(&s)
 	if err != nil {
 		log.Fatal(err)
 	}
-	s := Server{Node: n, rpcServer: rpcServer}
-	//s.Node.RoutingTable.Add(s.Node)
+	s.RoutingTable.Add(s.Node)
 	return s
 }
 
@@ -45,12 +50,12 @@ func (s Server) Bootstrap(servers ...Server) {
 	}
 }
 
-func (s Server) UpdateBucket(position int, server Server) {
-	//bucket := n.Buckets[position]
-	//bucket.Append(node)
-	//n.Buckets[position].Append(node)
+func (s Server) UpdateBucketList(position int, node Node) {
+	s.Node.Buckets[position].Append(node)
+}
 
-	s.RoutingTable.Add(server)
+func (s Server) UpdateRoutingTable(node Node) {
+	s.RoutingTable.Add(node)
 }
 
 func (s Server) Ping(other Server) error {
@@ -63,13 +68,13 @@ func (s Server) Ping(other Server) error {
 		RpcId:  RandNumber(),
 	}
 	var reply Reply
-	err = client.Call("Node.Ping", args, &reply)
+	err = client.Call("Server.PingRpc", args, &reply)
 	if err != nil {
 		return err
 	}
-	distance := new(big.Int).Xor(s.Node.ID, other.Node.ID)
-	bucket := len(distance.Bytes())*8 - distance.BitLen() + 1
-	s.Node.UpdateBucket(bucket, other.Node)
+	//distance := new(big.Int).Xor(s.Node.ID, other.Node.ID)
+	//bucket := len(distance.Bytes())*8 - distance.BitLen() + 1
+	s.UpdateRoutingTable(other.Node)
 	return nil
 }
 
@@ -99,7 +104,7 @@ func (s Server) Store(node Node, key string, data []byte) error {
 	return nil
 }
 
-func (s Server) FindNode(other Server, key string) ([]Node, error) {
+func (s Server) FindNodes(other Server, key string) ([]Node, error) {
 	client, err := s.Contact(other)
 	if err != nil {
 		return nil, err
@@ -111,7 +116,7 @@ func (s Server) FindNode(other Server, key string) ([]Node, error) {
 	}
 	//xor := new(big.Int).Xor(node.ID, HashToBigInt(keyHash))
 	var reply Reply
-	err = client.Call("Node.FindNode", args, &reply)
+	err = client.Call("Server.FindNode", args, &reply)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +124,7 @@ func (s Server) FindNode(other Server, key string) ([]Node, error) {
 	return []Node{}, nil
 }
 
-func (s Server) FindValue(other Server, key string) ([]Node, error) {
+func (s Server) FindValues(other Server, key string) ([]Node, error) {
 	client, err := s.Contact(other)
 	if err != nil {
 		return nil, err

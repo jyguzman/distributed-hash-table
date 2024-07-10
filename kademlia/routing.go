@@ -3,7 +3,6 @@ package kademlia
 import (
 	"fmt"
 	"math/big"
-	"strconv"
 )
 
 type RTNode struct {
@@ -32,10 +31,10 @@ func (rn *RTNode) StringHelper(level int) string {
 	if rn == nil {
 		return tabs + "<nil>"
 	}
-	pre, left, right := "*", tabs+"nil", tabs+"nil"
 	if rn.isLeaf() {
 		return tabs + rn.Prefix + "\n" + tabs + tabs + rn.Bucket.String()
 	}
+	pre, left, right := "*", tabs+"nil", tabs+"nil"
 	if len(rn.Prefix) > 0 {
 		pre = tabs + rn.Prefix
 	}
@@ -79,32 +78,12 @@ func (rn *RTNode) isLeaf() bool {
 }
 
 func (rn *RTNode) Add(currPos int, node Node) {
-	if rn == nil {
-		return
-	}
 	if rn.isLeaf() {
 		if rn.Bucket.Size < rn.K {
 			rn.Bucket.Append(node)
 			return
 		}
-
-		prefix := ""
-		for i := 0; i < len(rn.Prefix); i++ {
-			prefix += strconv.Itoa(int(node.ID.Bit(node.ID.BitLen() - i - 1)))
-		}
-
-		if rn.Prefix == prefix {
-			fmt.Printf("Node prefix: %s Bucket prefix: %s Node: %s\n", prefix, rn.Prefix, node.String())
-			rn.Split()
-			//bit := int(node.ID.Bit(node.ID.BitLen() - currPos - 1))
-			//if bit == 0 {
-			//	rn.Left.Add(currPos+1, node)
-			//} else {
-			//	rn.Right.Add(currPos+1, node)
-			//}
-		} else {
-			return
-		}
+		rn.Split()
 	}
 	bit := int(node.ID.Bit(node.ID.BitLen() - currPos - 1))
 	if bit == 0 {
@@ -115,9 +94,10 @@ func (rn *RTNode) Add(currPos int, node Node) {
 }
 
 type RoutingTable struct {
-	K    int
-	Root *RTNode
-	Size int
+	K        int
+	Root     *RTNode
+	Size     int
+	Prefixes map[string]bool
 }
 
 func (rt *RoutingTable) String() string {
@@ -128,9 +108,9 @@ func NewRoutingTable(k int) *RoutingTable {
 	return &RoutingTable{K: k, Root: NewRTNode(k)}
 }
 
-func (rt *RoutingTable) Add(server Server) {
+func (rt *RoutingTable) Add(node Node) {
 	rt.Size += 1
-	rt.Root.Add(1, server)
+	rt.Root.Add(1, node)
 }
 
 func (rt *RoutingTable) KNearestHelper(key *big.Int, rn *RTNode, nodes []Node, k int) []Node {
