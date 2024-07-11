@@ -3,6 +3,7 @@ package kademlia
 import (
 	"fmt"
 	"math/big"
+	"strings"
 )
 
 type RTNode struct {
@@ -24,19 +25,16 @@ func NewRTNode(k int) *RTNode {
 }
 
 func (rn *RTNode) StringHelper(level int) string {
-	tabs := ""
-	for i := 0; i < level; i++ {
-		tabs += "\t"
-	}
+	tabs := strings.Repeat("\t", level)
 	if rn == nil {
 		return tabs + "<nil>"
 	}
 	if rn.isLeaf() {
-		return tabs + rn.Prefix + "\n" + tabs + tabs + rn.Bucket.String()
+		return tabs + rn.Prefix + ": " + rn.Bucket.String()
 	}
-	pre, left, right := "*", tabs+"nil", tabs+"nil"
+	prefix, left, right := "*", tabs+"nil", tabs+"nil"
 	if len(rn.Prefix) > 0 {
-		pre = tabs + rn.Prefix
+		prefix = tabs + rn.Prefix
 	}
 	if rn.Left != nil {
 		left = tabs + rn.Left.StringHelper(level+1)
@@ -44,23 +42,19 @@ func (rn *RTNode) StringHelper(level int) string {
 	if rn.Right != nil {
 		right = tabs + rn.Right.StringHelper(level+1)
 	}
-	return fmt.Sprintf("%s \n%s \n%s", pre, left, right)
+	return prefix + " \n" + left + " \n" + right
 }
 
 func (rn *RTNode) String() string {
 	return rn.StringHelper(0)
 }
 
-func (rn *RTNode) Split() {
+func (rn *RTNode) Split(prefixes map[string]KBucket) {
 	zeroBucket, oneBucket := NewKBucket(rn.K), NewKBucket(rn.K)
 	ptr := rn.Bucket.Head
-	preLen := 0
-	if len(rn.Prefix) > 0 {
-		preLen = len(rn.Prefix)
-	}
 	for ptr != nil {
 		currId := ptr.Node.ID
-		bit := int(currId.Bit(currId.BitLen() - preLen - 1))
+		bit := int(currId.Bit(currId.BitLen() - len(rn.Prefix) - 1))
 		if bit == 0 {
 			zeroBucket.Append(ptr.Node)
 		} else {
@@ -69,57 +63,79 @@ func (rn *RTNode) Split() {
 		ptr = ptr.Next
 	}
 	rn.Bucket = nil
+	delete(prefixes, rn.Prefix)
 	rn.Left = &RTNode{Bucket: zeroBucket, K: rn.K, Prefix: rn.Prefix + "0"}
 	rn.Right = &RTNode{Bucket: oneBucket, K: rn.K, Prefix: rn.Prefix + "1"}
+	prefixes[rn.Left.Prefix] = *rn.Left.Bucket
+	prefixes[rn.Right.Prefix] = *rn.Right.Bucket
 }
 
 func (rn *RTNode) isLeaf() bool {
 	return rn.Left == nil && rn.Right == nil && rn.Bucket != nil
 }
 
-func (rn *RTNode) Add(currPos int, node Node) {
+func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]KBucket) {
 	if rn.isLeaf() {
 		if rn.Bucket.Size < rn.K {
 			rn.Bucket.Append(node)
 			return
 		}
-		rn.Split()
+		rn.Split(prefixes)
 	}
 	bit := int(node.ID.Bit(node.ID.BitLen() - currPos - 1))
 	if bit == 0 {
-		rn.Left.Add(currPos+1, node)
+		rn.Left.Add(currPos+1, node, prefixes)
 	} else {
-		rn.Right.Add(currPos+1, node)
+		rn.Right.Add(currPos+1, node, prefixes)
 	}
 }
 
+type Prefixes map[string]KBucket
+
+//func (pr Prefixes) String() string {
+//	result := strings.Builder{}
+//	for prefix, node := range pr {
+//		result.Write()
+//	}
+//}
+
 type RoutingTable struct {
-	K        int
-	Root     *RTNode
-	Size     int
-	Prefixes map[string]bool
+	Owner          Node
+	K              int
+	Root           *RTNode
+	Size           int
+	BucketPrefixes map[string]KBucket
 }
 
 func (rt *RoutingTable) String() string {
 	return rt.Root.String()
 }
 
-func NewRoutingTable(k int) *RoutingTable {
-	return &RoutingTable{K: k, Root: NewRTNode(k)}
+func NewRoutingTable(owner Node, k int) *RoutingTable {
+	return &RoutingTable{
+		Owner:          owner,
+		K:              k,
+		Root:           NewRTNode(k),
+		BucketPrefixes: make(map[string]KBucket),
+	}
 }
 
 func (rt *RoutingTable) Add(node Node) {
 	rt.Size += 1
-	rt.Root.Add(1, node)
+	rt.Root.Add(1, node, rt.BucketPrefixes)
 }
 
-func (rt *RoutingTable) KNearestHelper(key *big.Int, rn *RTNode, nodes []Node, k int) []Node {
-	if len(nodes) == k {
-		return nodes
-	}
+func (rt *RoutingTable) GetNearestHelper(bucket KBucket, nodes []Node) []Node {
 	return nodes
 }
 
-func (rt *RoutingTable) KNearest(key *big.Int, k int) []Node {
-	return rt.KNearestHelper(key, rt.Root, []Node{}, k)
+func (rt *RoutingTable) GetNearest(key *big.Int) []Node {
+	ownerId, prefixMap := rt.Owner.ID, rt.BucketPrefixes
+	for _, bucket := range prefixMap {
+		fmt.Println(bucket)
+	}
+	xor := new(big.Int).Xor(key, ownerId)
+	fmt.Println(xor, prefixMap)
+	return []Node{}
+	//return rt.GetNearestHelper(key, , []Node{})
 }

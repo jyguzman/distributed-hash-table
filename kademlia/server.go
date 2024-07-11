@@ -2,7 +2,7 @@ package kademlia
 
 import (
 	"fmt"
-	"go-dht/protocol"
+	"go-dht/bson"
 	"log"
 	"math/big"
 	"net"
@@ -12,6 +12,7 @@ import (
 type Server struct {
 	Node         Node
 	rpcServer    *rpc.Server
+	UdpConn      *net.UDPConn
 	DataStore    map[string][]byte
 	RoutingTable *RoutingTable
 }
@@ -23,13 +24,13 @@ func NewServer(IP string, Port int) Server {
 		Node:         n,
 		rpcServer:    rpcServer,
 		DataStore:    make(map[string][]byte),
-		RoutingTable: NewRoutingTable(1),
+		RoutingTable: NewRoutingTable(n, 3),
 	}
 	err := rpcServer.Register(&s)
 	if err != nil {
 		log.Fatal(err)
 	}
-	s.RoutingTable.Add(s.Node)
+	s.UpdateRoutingTable(s.Node)
 	return s
 }
 
@@ -72,14 +73,12 @@ func (s Server) Ping(other Server) error {
 	if err != nil {
 		return err
 	}
-	//distance := new(big.Int).Xor(s.Node.ID, other.Node.ID)
-	//bucket := len(distance.Bytes())*8 - distance.BitLen() + 1
 	s.UpdateRoutingTable(other.Node)
 	return nil
 }
 
 func (s Server) Put(key string, value any) error {
-	data, err := protocol.Serialize(value)
+	data, err := bson.MarshalValue(value)
 	if err != nil {
 		return err
 	}
@@ -93,7 +92,6 @@ func (s Server) Get(key string) any {
 }
 
 func (s Server) Store(node Node, key string, data []byte) error {
-
 	args := CallArgs{
 		Caller: s.Node,
 		RpcId:  RandNumber(),
@@ -114,7 +112,6 @@ func (s Server) FindNodes(other Server, key string) ([]Node, error) {
 		RpcId:  RandNumber(),
 		Key:    GetHash(key),
 	}
-	//xor := new(big.Int).Xor(node.ID, HashToBigInt(keyHash))
 	var reply Reply
 	err = client.Call("Server.FindNode", args, &reply)
 	if err != nil {

@@ -1,4 +1,4 @@
-package protocol
+package bson
 
 import (
 	"bytes"
@@ -19,10 +19,19 @@ const (
 	Null    Type = 0x08
 )
 
-type A []any
-type O map[any]any
+type Pair struct {
+	Key string
+	Val any
+}
 
-func Serialize(val any) ([]byte, error) {
+type D []Pair
+type O map[string]any
+
+func Marshal(v any) ([]byte, error) {
+	return nil, nil
+}
+
+func MarshalValue(val any) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	var err error
 	if val == nil {

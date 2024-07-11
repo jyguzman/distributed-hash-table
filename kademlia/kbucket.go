@@ -20,6 +20,9 @@ func NewKBucket(k int) *KBucket {
 }
 
 func (kb *KBucket) String() string {
+	if kb.Head == nil {
+		return "empty"
+	}
 	ptr := kb.Head
 	res := ""
 	for ptr != nil {
