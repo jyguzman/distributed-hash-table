@@ -1,7 +1,7 @@
 package kademlia
 
 import (
-	"fmt"
+	"container/heap"
 	"math/big"
 	"strings"
 )
@@ -49,7 +49,7 @@ func (rn *RTNode) String() string {
 	return rn.StringHelper(0)
 }
 
-func (rn *RTNode) Split(prefixes map[string]KBucket) {
+func (rn *RTNode) Split(prefixes map[string]*KBucket) {
 	zeroBucket, oneBucket := NewKBucket(rn.K), NewKBucket(rn.K)
 	ptr := rn.Bucket.Head
 	for ptr != nil {
@@ -66,15 +66,15 @@ func (rn *RTNode) Split(prefixes map[string]KBucket) {
 	delete(prefixes, rn.Prefix)
 	rn.Left = &RTNode{Bucket: zeroBucket, K: rn.K, Prefix: rn.Prefix + "0"}
 	rn.Right = &RTNode{Bucket: oneBucket, K: rn.K, Prefix: rn.Prefix + "1"}
-	prefixes[rn.Left.Prefix] = *rn.Left.Bucket
-	prefixes[rn.Right.Prefix] = *rn.Right.Bucket
+	prefixes[rn.Left.Prefix] = rn.Left.Bucket
+	prefixes[rn.Right.Prefix] = rn.Right.Bucket
 }
 
 func (rn *RTNode) isLeaf() bool {
 	return rn.Left == nil && rn.Right == nil && rn.Bucket != nil
 }
 
-func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]KBucket) {
+func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]*KBucket) {
 	if rn.isLeaf() {
 		if rn.Bucket.Size < rn.K {
 			rn.Bucket.Append(node)
@@ -90,21 +90,32 @@ func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]KBucket) {
 	}
 }
 
-type Prefixes map[string]KBucket
+type Prefix struct {
+	Prefix string
+	Bucket *KBucket
+}
+type Prefixes []Prefix
 
-//func (pr Prefixes) String() string {
-//	result := strings.Builder{}
-//	for prefix, node := range pr {
-//		result.Write()
-//	}
-//}
+func (p *Prefixes) Insert(pair Prefix) {
+	lo, hi := 0, len(*p)
+
+	for lo < hi {
+		mid := (lo + hi) / 2
+		prefix := (*p)[mid].Prefix
+		if prefix < pair.Prefix {
+			hi = mid
+		} else {
+			lo = mid + 1
+		}
+	}
+}
 
 type RoutingTable struct {
 	Owner          Node
 	K              int
 	Root           *RTNode
 	Size           int
-	BucketPrefixes map[string]KBucket
+	BucketPrefixes map[string]*KBucket
 }
 
 func (rt *RoutingTable) String() string {
@@ -116,26 +127,33 @@ func NewRoutingTable(owner Node, k int) *RoutingTable {
 		Owner:          owner,
 		K:              k,
 		Root:           NewRTNode(k),
-		BucketPrefixes: make(map[string]KBucket),
+		BucketPrefixes: make(map[string]*KBucket),
 	}
 }
 
 func (rt *RoutingTable) Add(node Node) {
 	rt.Size += 1
 	rt.Root.Add(1, node, rt.BucketPrefixes)
-}
-
-func (rt *RoutingTable) GetNearestHelper(bucket KBucket, nodes []Node) []Node {
-	return nodes
+	if rt.Size == 1 {
+		rt.BucketPrefixes[""] = rt.Root.Bucket
+	}
 }
 
 func (rt *RoutingTable) GetNearest(key *big.Int) []Node {
-	ownerId, prefixMap := rt.Owner.ID, rt.BucketPrefixes
-	for _, bucket := range prefixMap {
-		fmt.Println(bucket)
+	nodeHeap := &NodeHeap{Key: key}
+	heap.Init(nodeHeap)
+	for _, bucket := range rt.BucketPrefixes {
+		ptr := bucket.Head
+		for ptr != nil {
+			if ptr.Node.ID.Cmp(key) != 0 {
+				heap.Push(nodeHeap, ptr.Node)
+			}
+			ptr = ptr.Next
+		}
 	}
-	xor := new(big.Int).Xor(key, ownerId)
-	fmt.Println(xor, prefixMap)
-	return []Node{}
-	//return rt.GetNearestHelper(key, , []Node{})
+	nodes := make([]Node, rt.K)
+	for i := 0; i < rt.K; i++ {
+		nodes[i] = heap.Pop(nodeHeap).(Node)
+	}
+	return nodes
 }

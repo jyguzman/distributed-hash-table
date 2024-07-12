@@ -7,7 +7,7 @@ import (
 
 type CallArgs struct {
 	Caller Node
-	Key    string
+	Key    *big.Int
 	Data   []byte
 	RpcId  *big.Int
 }
@@ -24,8 +24,6 @@ func (s Server) PingRpc(ca *CallArgs, reply *Reply) error {
 	reply.Recipient = s.Node
 	reply.Message = fmt.Sprintf("PONG %v", ca.RpcId)
 	reply.Code = 1
-	//distance := new(big.Int).Xor(s.Node.ID, ca.Caller.ID)
-	//bucket := len(distance.Bytes())*8 - distance.BitLen() + 1
 	s.UpdateRoutingTable(ca.Caller)
 	return nil
 }
@@ -39,10 +37,10 @@ func (s Server) StoreRpc(ca *CallArgs, reply *Reply) error {
 }
 
 func (s Server) FindNode(ca *CallArgs, reply *Reply) error {
-	caller, hashedKey, rpcId := ca.Caller, ca.Key, ca.RpcId
-	distance := new(big.Int).Xor(caller.ID, HashToBigInt(hashedKey))
+	caller, rpcId := ca.Caller, ca.RpcId
+	reply.Nodes = s.RoutingTable.GetNearest(ca.Key)
 	reply.Recipient = s.Node
-	fmt.Println(caller, hashedKey, rpcId, distance)
+	fmt.Println(caller, rpcId)
 	return nil
 }
 

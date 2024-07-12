@@ -27,9 +27,9 @@ func (kb *KBucket) String() string {
 	res := ""
 	for ptr != nil {
 		if ptr.Next != nil {
-			res += fmt.Sprintf("%s:%d -> ", ptr.Node.IP, ptr.Node.Port)
+			res += fmt.Sprintf("%s:%d -> ", ptr.Node.Host, ptr.Node.Port)
 		} else {
-			res += fmt.Sprintf("%s:%d ", ptr.Node.IP, ptr.Node.Port)
+			res += fmt.Sprintf("%s:%d ", ptr.Node.Host, ptr.Node.Port)
 		}
 		ptr = ptr.Next
 	}

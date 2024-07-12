@@ -12,24 +12,24 @@ import (
 
 type Node struct {
 	ID      *big.Int
-	IP      string
+	Host    string
 	Port    int
 	K       int
 	Buckets []KBucket
 }
 
-func NewNode(IP string, Port int) Node {
-	addressHash := GetHash(IP + ":" + strconv.Itoa(Port))
+func NewNode(host string, port int) Node {
+	addressHash := GetHash(host + ":" + strconv.Itoa(port))
 	buckets := make([]KBucket, 160)
 	return Node{
-		IP: IP, Port: Port,
+		Host: host, Port: port,
 		ID:      HashToBigInt(addressHash),
 		Buckets: buckets,
 	}
 }
 
 func (n Node) String() string {
-	return fmt.Sprintf("(%s:%d %v)", n.IP, n.Port, n.ID)
+	return fmt.Sprintf("(%s:%d %v)", n.Host, n.Port, n.ID)
 }
 
 func (n Node) Xor(other Node) *big.Int {

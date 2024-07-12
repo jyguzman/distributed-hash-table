@@ -17,8 +17,8 @@ type Server struct {
 	RoutingTable *RoutingTable
 }
 
-func NewServer(IP string, Port int) Server {
-	n := NewNode(IP, Port)
+func NewServer(host string, port int) Server {
+	n := NewNode(host, port)
 	rpcServer := rpc.NewServer()
 	s := Server{
 		Node:         n,
@@ -35,7 +35,7 @@ func NewServer(IP string, Port int) Server {
 }
 
 func (s Server) Listen() {
-	host, port := s.Node.IP, s.Node.Port
+	host, port := s.Node.Host, s.Node.Port
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
 		log.Fatal("listen error:", err)
@@ -95,7 +95,7 @@ func (s Server) Store(node Node, key string, data []byte) error {
 	args := CallArgs{
 		Caller: s.Node,
 		RpcId:  RandNumber(),
-		Key:    key,
+		Key:    HashToBigInt(GetHash(key)),
 		Data:   data,
 	}
 	fmt.Println(args)
@@ -110,7 +110,7 @@ func (s Server) FindNodes(other Server, key string) ([]Node, error) {
 	args := CallArgs{
 		Caller: s.Node,
 		RpcId:  RandNumber(),
-		Key:    GetHash(key),
+		Key:    HashToBigInt(GetHash(key)),
 	}
 	var reply Reply
 	err = client.Call("Server.FindNode", args, &reply)
@@ -118,10 +118,10 @@ func (s Server) FindNodes(other Server, key string) ([]Node, error) {
 		return nil, err
 	}
 	fmt.Println(args, client)
-	return []Node{}, nil
+	return reply.Nodes, nil
 }
 
-func (s Server) FindValues(other Server, key string) ([]Node, error) {
+func (s Server) GetValue(other Server, key string) ([]Node, error) {
 	client, err := s.Contact(other)
 	if err != nil {
 		return nil, err
@@ -129,7 +129,7 @@ func (s Server) FindValues(other Server, key string) ([]Node, error) {
 	args := CallArgs{
 		Caller: s.Node,
 		RpcId:  RandNumber(),
-		Key:    key,
+		Key:    HashToBigInt(GetHash(key)),
 	}
 	keyHash := GetHash(key)
 	xor := new(big.Int).Xor(other.Node.ID, HashToBigInt(keyHash))
@@ -138,7 +138,7 @@ func (s Server) FindValues(other Server, key string) ([]Node, error) {
 }
 
 func (s Server) Contact(other Server) (*rpc.Client, error) {
-	address := fmt.Sprintf("%s:%d", other.Node.IP, other.Node.Port)
+	address := fmt.Sprintf("%s:%d", other.Node.Host, other.Node.Port)
 	client, err := rpc.Dial("tcp", address)
 	if err != nil {
 		return nil, fmt.Errorf("error contacting node at %s", address)
