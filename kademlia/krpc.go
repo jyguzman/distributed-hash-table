@@ -2,25 +2,56 @@ package kademlia
 
 import (
 	"fmt"
+	"log"
 	"net"
 )
 
 type UdpClient struct {
-	Conn *net.UDPConn
+	Conn   *net.UDPConn
+	Server Server
+}
+
+func (s Server) SendUDP(message string, server Server) {
+	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", server.Node.Host, server.Node.Port))
+	if err != nil {
+		log.Println(err)
+	}
+	//_, err = s.UdpServer.WriteToUDP([]byte(message), addr)
+	if err != nil {
+		log.Println(err)
+	}
+	server.Requests <- []string{message, addr.String()}
+	server.WaitGroup.Add(1)
+
 }
 
 func (c UdpClient) Call(method string, args any, reply any) error {
+	switch method {
+	case "ping":
+		_, err := c.Conn.Write([]byte("pong"))
+		if err != nil {
+			return err
+		}
+	case "store":
+		fmt.Println("store")
+	case "find_nodes":
+		fmt.Println("find_node")
+	case "find_value":
+		fmt.Println("find_value")
+	default:
+		fmt.Println("Unknown method")
+	}
 	return nil
+}
+
+func KrpcPing(args Server, reply Response) {
+
 }
 
 type Request struct {
 }
 
 type Response struct {
-}
-
-func (s Server) Call(method string, args any, reply any) error {
-	return nil
 }
 
 func (s Server) SendPing(server Server) error {
@@ -61,8 +92,4 @@ func (s Server) Connect(server Server) (*net.UDPConn, error) {
 		return nil, err
 	}
 	return conn, nil
-}
-
-func KrpcPing(args Server) {
-
 }

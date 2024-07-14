@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"go-dht/kademlia"
+	"go-dht/bson"
 	"math/big"
 	"strconv"
 )
@@ -15,43 +15,76 @@ func FirstNBits(val *big.Int, n uint) string {
 	return res
 }
 func main() {
-	server := kademlia.NewServer("localhost", 8001)
-	serverTwo := kademlia.NewServer("localhost", 8002)
-	serverThree := kademlia.NewServer("localhost", 8003)
-	serverFour := kademlia.NewServer("localhost", 8004)
-	serverFive := kademlia.NewServer("localhost", 8005)
-	serverSix := kademlia.NewServer("localhost", 8006)
-	serverSeven := kademlia.NewServer("localhost", 8007)
-	serverEight := kademlia.NewServer("localhost", 8008)
-	serverNine := kademlia.NewServer("localhost", 8009)
-	server.Listen()
-	serverTwo.Listen()
-	serverThree.Listen()
-	serverFour.Listen()
-	serverFive.Listen()
-	serverSix.Listen()
-	serverSeven.Listen()
-	serverEight.Listen()
-	serverNine.Listen()
-	err := server.Ping(serverTwo)
-	err = server.Ping(serverThree)
-	err = server.Ping(serverFour)
-	err = server.Ping(serverFive)
-	err = server.Ping(serverSix)
-	err = server.Ping(serverSeven)
-	err = server.Ping(serverEight)
-	err = server.Ping(serverNine)
+	//pair := bson.Pair{Key: "hello", Val: "world"}
+	obj := bson.D{
+		{Key: "hello", Val: bson.D{{Key: "name", Val: "jordie"}}},
+	}
+	bytes, err := bson.Marshal(obj)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(bytes)
+	//val := bson.D{
+	//	{"hello", "world"},
+	//}
+	bsonType, bytes, err := bson.MarshalValue(obj)
+	fmt.Println(bsonType)
+	fmt.Println(bytes)
+	if err != nil {
+		panic(err)
+	}
+	//server := kademlia.NewServer("localhost", 8001)
+	//serverTwo := kademlia.NewServer("localhost", 8002)
+	//serverThree := kademlia.NewServer("localhost", 8003)
+	//serverFour := kademlia.NewServer("localhost", 8004)
+	//serverFive := kademlia.NewServer("localhost", 8005)
+	//serverSix := kademlia.NewServer("localhost", 8006)
+	//serverSeven := kademlia.NewServer("localhost", 8007)
+	//serverEight := kademlia.NewServer("localhost", 8008)
+	//serverNine := kademlia.NewServer("localhost", 8009)
+	//server.Listen()
+	//serverTwo.Listen()
+	//serverThree.Listen()
+	//serverFour.Listen()
+	//serverFive.Listen()
+	//serverSix.Listen()
+	//serverSeven.Listen()
+	//serverEight.Listen()
+	//serverNine.Listen()
+	//err := server.Ping(serverTwo)
+	//err = server.Ping(serverThree)
+	//err = server.Ping(serverFour)
+	//err = server.Ping(serverFive)
+	//err = server.Ping(serverSix)
+	//err = server.Ping(serverSeven)
+	//err = server.Ping(serverEight)
+	//err = server.Ping(serverNine)
+	//if err != nil {
+	//	panic(err)
+	//}
 	//fmt.Println(server.Node.Buckets[1].String())
-	fmt.Println("Root:")
-	fmt.Println(server.RoutingTable.String())
-	fmt.Println()
-	kNearest := server.RoutingTable.GetNearest(serverSeven.Node.ID)
-	fmt.Println("K nearest:")
-	fmt.Println(kNearest)
-	fmt.Println("10", "11", "" < "10001")
+	//fmt.Println("Root:")
+	//fmt.Println(server.RoutingTable.String())
+	//fmt.Println()
+	//kNearest := server.RoutingTable.GetNearest(serverSeven.Node.ID)
+	//fmt.Println("K nearest:")
+	//fmt.Println(kNearest)
+	//c := make(chan string)
+	//c := make(chan bool, 1)
+	//done := make(chan bool, 1)
+	//go server.SendUDP("ping", serverTwo)
+	//time.Sleep(1000 * time.Millisecond)
+	//<-done
+	//c <- true
+	//select {
+	//case <-c:
+	//	fmt.Println("lsfdj")
+	//	close(c)
+	//default:
+	//	fmt.Println("sfdfsd")
+	//}
+	//fmt.Println(<-c)
+	//fmt.Println("10", "11", "" < "10001")
 	//fmt.Println(server.Node.ID)
 	//fmt.Println(serverTwo.Node.ID)
 	//fmt.Println(serverThree.Node.ID)
