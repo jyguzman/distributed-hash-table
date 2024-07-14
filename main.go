@@ -1,38 +1,24 @@
 package main
 
-import (
-	"fmt"
-	"go-dht/bson"
-	"math/big"
-	"strconv"
-)
-
-func FirstNBits(val *big.Int, n uint) string {
-	res := ""
-	for i := 0; i < int(n); i++ {
-		res += strconv.Itoa(int(val.Bit(val.BitLen() - i - 1)))
-	}
-	return res
-}
 func main() {
 	//pair := bson.Pair{Key: "hello", Val: "world"}
-	obj := bson.D{
-		{Key: "hello", Val: bson.D{{Key: "name", Val: "jordie"}}},
-	}
-	bytes, err := bson.Marshal(obj)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(bytes)
+	//obj := bson.D{
+	//	{Key: "hello", Val: bson.D{{Key: "name", Val: "jordie"}}},
+	//}
+	//bytes, err := bson.Marshal(obj)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println(bytes)
 	//val := bson.D{
 	//	{"hello", "world"},
 	//}
-	bsonType, bytes, err := bson.MarshalValue(obj)
-	fmt.Println(bsonType)
-	fmt.Println(bytes)
-	if err != nil {
-		panic(err)
-	}
+	//bsonType, bytes, err := bson.MarshalValue(obj)
+	//fmt.Println(bsonType)
+	//fmt.Println(bytes)
+	//if err != nil {
+	//	panic(err)
+	//}
 	//server := kademlia.NewServer("localhost", 8001)
 	//serverTwo := kademlia.NewServer("localhost", 8002)
 	//serverThree := kademlia.NewServer("localhost", 8003)

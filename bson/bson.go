@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math/big"
+	"slices"
 	"strconv"
 )
 
@@ -47,7 +49,7 @@ func Marshal(v any) ([]byte, error) {
 		if marshalErr != nil {
 			return nil, marshalErr
 		}
-		size += 4
+		size += 4 + 1
 		err = binary.Write(buf, binary.LittleEndian, size)
 		err = binary.Write(buf, binary.LittleEndian, mBytes)
 	case A:
@@ -55,11 +57,11 @@ func Marshal(v any) ([]byte, error) {
 		if marshalErr != nil {
 			return nil, marshalErr
 		}
-		size += 4
+		size += 4 + 1
 		err = binary.Write(buf, binary.LittleEndian, size)
 		err = binary.Write(buf, binary.LittleEndian, aBytes)
 	default:
-		return nil, fmt.Errorf("cannot marshal %v of type %T", v, t)
+		return nil, fmt.Errorf("value must be object (ordered/unordered) or array, not of type %T", t)
 	}
 	if err != nil {
 		return nil, err
@@ -78,7 +80,10 @@ func marshalMap(m M) ([]byte, int32, error) {
 		size += pairSize
 		_, err = buf.Write(pairBytes)
 	}
-
+	err := binary.Write(buf, binary.LittleEndian, byte(0x00))
+	if err != nil {
+		return nil, -1, err
+	}
 	return buf.Bytes(), size, nil
 }
 
@@ -103,13 +108,17 @@ func marshalObj(obj D) ([]byte, int32, error) {
 func marshalArray(array A) ([]byte, int32, error) {
 	buf := new(bytes.Buffer)
 	var size int32
-	for idx, v := range array {
-		pairBytes, pairSize, err := MarshalPair(Pair{Key: strconv.Itoa(idx), Val: v})
+	for idx, val := range array {
+		pairBytes, pairSize, err := MarshalPair(Pair{Key: strconv.Itoa(idx), Val: val})
 		if err != nil {
 			return nil, -1, err
 		}
 		size += pairSize
 		_, err = buf.Write(pairBytes)
+	}
+	err := binary.Write(buf, binary.LittleEndian, byte(0x00))
+	if err != nil {
+		return nil, -1, err
 	}
 	return buf.Bytes(), size, nil
 }
@@ -133,6 +142,13 @@ func MarshalValue(val any) (Type, []byte, error) {
 			return -1, nil, marshalErr
 		}
 		err = binary.Write(buf, binary.LittleEndian, objBytes)
+	case M:
+		bsonType = Object
+		mapBytes, marshalErr := Marshal(vt)
+		if marshalErr != nil {
+			return -1, nil, marshalErr
+		}
+		err = binary.Write(buf, binary.LittleEndian, mapBytes)
 	case A:
 		bsonType = Array
 		arrBytes, marshalErr := Marshal(vt)
@@ -140,6 +156,9 @@ func MarshalValue(val any) (Type, []byte, error) {
 			return -1, nil, marshalErr
 		}
 		err = binary.Write(buf, binary.LittleEndian, arrBytes)
+	case []byte:
+		bsonType = BinData
+		err = binary.Write(buf, binary.LittleEndian, vt)
 	case float64:
 		bsonType = Double
 		err = binary.Write(buf, binary.LittleEndian, vt)
@@ -152,6 +171,11 @@ func MarshalValue(val any) (Type, []byte, error) {
 	case int64:
 		bsonType = Long
 		err = binary.Write(buf, binary.LittleEndian, vt)
+	case *big.Int:
+		bsonType = BinData
+		intBytes := vt.Bytes()
+		slices.Reverse(intBytes)
+		err = binary.Write(buf, binary.LittleEndian, intBytes)
 	case string:
 		bsonType = String
 		err = binary.Write(buf, binary.LittleEndian, []byte(vt))
