@@ -1,6 +1,21 @@
 package main
 
+import "go-dht/bsonrpc"
+
 func main() {
+	server, err := bsonrpc.NewServer("localhost", 8000)
+	if err != nil {
+		panic(err)
+	}
+	server.Listen()
+	client, err := bsonrpc.Dial("localhost", 8000)
+	if err != nil {
+		panic(err)
+	}
+	err = client.Call("PING")
+	if err != nil {
+		panic(err)
+	}
 	//pair := bson.Pair{Key: "hello", Val: "world"}
 	//obj := bson.D{
 	//	{Key: "hello", Val: bson.D{{Key: "name", Val: "jordie"}}},
@@ -55,22 +70,6 @@ func main() {
 	//kNearest := server.RoutingTable.GetNearest(serverSeven.Node.ID)
 	//fmt.Println("K nearest:")
 	//fmt.Println(kNearest)
-	//c := make(chan string)
-	//c := make(chan bool, 1)
-	//done := make(chan bool, 1)
-	//go server.SendUDP("ping", serverTwo)
-	//time.Sleep(1000 * time.Millisecond)
-	//<-done
-	//c <- true
-	//select {
-	//case <-c:
-	//	fmt.Println("lsfdj")
-	//	close(c)
-	//default:
-	//	fmt.Println("sfdfsd")
-	//}
-	//fmt.Println(<-c)
-	//fmt.Println("10", "11", "" < "10001")
 	//fmt.Println(server.Node.ID)
 	//fmt.Println(serverTwo.Node.ID)
 	//fmt.Println(serverThree.Node.ID)

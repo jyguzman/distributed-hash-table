@@ -213,3 +213,7 @@ func MarshalPair(p Pair) ([]byte, int32, error) {
 	bufBytes := buf.Bytes()
 	return bufBytes, int32(len(bufBytes)), nil
 }
+
+func Unmarshal(data []byte, v any) {
+
+}

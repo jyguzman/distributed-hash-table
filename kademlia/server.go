@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"net"
 	"net/rpc"
-	"sync"
 )
 
 type Server struct {
@@ -16,8 +15,6 @@ type Server struct {
 	UdpServer    *net.UDPConn
 	DataStore    map[string][]byte
 	RoutingTable *RoutingTable
-	Requests     chan []string
-	WaitGroup    *sync.WaitGroup
 }
 
 func NewServer(host string, port int) Server {
@@ -28,8 +25,6 @@ func NewServer(host string, port int) Server {
 		rpcServer:    rpcServer,
 		DataStore:    make(map[string][]byte),
 		RoutingTable: NewRoutingTable(n, 3),
-		Requests:     make(chan []string),
-		WaitGroup:    &sync.WaitGroup{},
 	}
 	err := rpcServer.Register(&s)
 	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", host, port))
@@ -52,61 +47,6 @@ func (s Server) Listen() {
 		log.Fatal("listen error:", err)
 	}
 	go s.rpcServer.Accept(l)
-	go func() {
-		message := <-s.Requests
-		fmt.Printf("Got message from channel: %v\n", message)
-		if message[0] == "ping" {
-			sender, err := net.ResolveUDPAddr("udp", message[1])
-			if err != nil {
-				log.Fatal(err)
-			}
-			_, err = s.UdpServer.WriteToUDP([]byte("pong"), sender)
-			if err != nil {
-				log.Println("Error writing to UDP:", err)
-			} else {
-				fmt.Println("Sent pong to", sender)
-			}
-		}
-	}()
-	//if message[0] == "ping" {
-	//	sender, err := net.ResolveUDPAddr("udp", message[1])
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	//	_, err = s.UdpServer.WriteToUDP([]byte("pong"), sender)
-	//	if err != nil {
-	//		log.Println("Error writing to UDP:", err)
-	//	} else {
-	//		fmt.Println("Sent pong to", sender)
-	//	}
-	//}
-	go func() {
-		for {
-			buf := make([]byte, 1024)
-			n, _, err := s.UdpServer.ReadFromUDP(buf)
-			if err != nil {
-				log.Println(err)
-			}
-			fmt.Println("Received message:", string(buf[:n]))
-			s.WaitGroup.Done()
-			//message := <-s.Requests
-			//fmt.Printf("Got message from channel: %v\n", message)
-			//if message[0] == "ping" {
-			//	sender, err := net.ResolveUDPAddr("udp", message[1])
-			//	if err != nil {
-			//		log.Fatal(err)
-			//	}
-			//	_, err = s.UdpServer.WriteToUDP([]byte("pong"), sender)
-			//	if err != nil {
-			//		log.Println("Error writing to UDP:", err)
-			//	} else {
-			//		fmt.Println("Sent pong to", sender)
-			//	}
-			//}
-			//<-done
-			//c <- message
-		}
-	}()
 }
 
 func (s Server) Bootstrap(servers ...Server) {

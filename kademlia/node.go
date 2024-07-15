@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"go-dht/bson"
 	"log"
 	"math/big"
 	"strconv"
@@ -26,6 +27,10 @@ func NewNode(host string, port int) Node {
 		ID:      HashToBigInt(addressHash),
 		Buckets: buckets,
 	}
+}
+
+func (n Node) Tuple() bson.A {
+	return bson.A{n.Host, n.Port, n.ID}
 }
 
 func (n Node) String() string {
