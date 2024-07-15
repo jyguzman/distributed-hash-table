@@ -3,6 +3,7 @@ package kademlia
 import (
 	"fmt"
 	"go-dht/bson"
+	"go-dht/bsonrpc"
 	"log"
 	"math/big"
 	"net"
@@ -10,32 +11,31 @@ import (
 )
 
 type Server struct {
-	Node         Node
-	rpcServer    *rpc.Server
-	UdpServer    *net.UDPConn
-	DataStore    map[string][]byte
-	RoutingTable *RoutingTable
+	Node          Node
+	rpcServer     *rpc.Server
+	bsonRpcServer *bsonrpc.Server
+	dataStore     map[string][]byte
+	RoutingTable  *RoutingTable
 }
 
 func NewServer(host string, port int) Server {
 	n := NewNode(host, port)
 	rpcServer := rpc.NewServer()
+	bsonRpcServer, err := bsonrpc.NewServer(host, port, n.ID)
+	if err != nil {
+		log.Fatal(err)
+	}
 	s := Server{
-		Node:         n,
-		rpcServer:    rpcServer,
-		DataStore:    make(map[string][]byte),
-		RoutingTable: NewRoutingTable(n, 3),
+		Node:          n,
+		rpcServer:     rpcServer,
+		bsonRpcServer: bsonRpcServer,
+		dataStore:     make(map[string][]byte),
+		RoutingTable:  NewRoutingTable(n, 3),
 	}
-	err := rpcServer.Register(&s)
-	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", host, port))
+	err = rpcServer.Register(&s)
 	if err != nil {
 		log.Fatal(err)
 	}
-	conn, err := net.ListenUDP("udp", addr)
-	if err != nil {
-		log.Fatal(err)
-	}
-	s.UdpServer = conn
 	s.UpdateRoutingTable(s.Node)
 	return s
 }
@@ -148,6 +148,14 @@ func (s Server) Contact(other Server) (*rpc.Client, error) {
 	client, err := rpc.Dial("tcp", address)
 	if err != nil {
 		return nil, fmt.Errorf("error contacting node at %s", address)
+	}
+	return client, nil
+}
+
+func (s Server) ContactUDP(other Server) (*bsonrpc.Client, error) {
+	client, err := bsonrpc.Dial(other.Node.Host, other.Node.Port)
+	if err != nil {
+		return nil, fmt.Errorf("error contacting (UDP) node at %s", other.Node.Host)
 	}
 	return client, nil
 }
