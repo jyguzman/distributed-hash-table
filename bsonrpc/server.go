@@ -2,17 +2,20 @@ package bsonrpc
 
 import (
 	"fmt"
+	"go-dht/bson"
 	"log"
+	"math/big"
 	"net"
 )
 
 type Server struct {
 	Host string
 	Port int
+	ID   *big.Int
 	conn *net.UDPConn
 }
 
-func NewServer(host string, port int) (*Server, error) {
+func NewServer(host string, port int, id *big.Int) (*Server, error) {
 	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
 		return nil, err
@@ -21,7 +24,7 @@ func NewServer(host string, port int) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Server{host, port, conn}, nil
+	return &Server{host, port, id, conn}, nil
 }
 
 func (s *Server) Listen() {
@@ -39,4 +42,20 @@ func (s *Server) Listen() {
 			}
 		}
 	}()
+}
+
+func (s *Server) sendResponse(message []byte, sender *net.UDPAddr) {
+	_, err := s.conn.WriteToUDP(message, sender)
+	if err != nil {
+		log.Printf("Error writing to UDP socket: %s", err)
+	}
+}
+
+func (s *Server) Pong(addr *net.UDPAddr) {
+	bytes, err := bson.Marshal(bson.M{"id": s.ID})
+	if err != nil {
+		log.Printf("Error marshalling response: %s", err)
+		return
+	}
+	s.sendResponse(bytes, addr)
 }

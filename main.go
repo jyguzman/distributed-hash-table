@@ -12,10 +12,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	err = client.Call("PING")
-	if err != nil {
-		panic(err)
-	}
+	client.Call("PING")
+	//if err != nil {
+	//	panic(err)
+	//}
 	//pair := bson.Pair{Key: "hello", Val: "world"}
 	//obj := bson.D{
 	//	{Key: "hello", Val: bson.D{{Key: "name", Val: "jordie"}}},
