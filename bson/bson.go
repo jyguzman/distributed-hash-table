@@ -213,7 +213,10 @@ func MarshalPair(p Pair) ([]byte, int32, error) {
 }
 
 func Unmarshal(data []byte, obj any) error {
-	size := binary.LittleEndian.Uint32(data[0:4])
+	size := binary.LittleEndian.Uint32(data[:4])
+	if data[size-1] != byte(0x00) {
+		return fmt.Errorf("last byte must be null terminator 0x00, is 0x%02x", data[size-1])
+	}
 	i := uint32(4)
 	for i < size-1 {
 		bsonType := Type(data[i])
@@ -279,9 +282,9 @@ func unmarshalValue(v []byte, vType Type, idx uint32) (any, uint32, error) {
 	case BinData:
 		return nil, 0, nil
 	case Object:
-		return nil, 0, nil
+		// UnmarshalHelper(v, Object, idx)
 	case Array:
-		return nil, 0, nil
+		//return UnmarshalHelper(v, Array, idx)
 	case Null:
 		return nil, idx + 1, nil
 	}

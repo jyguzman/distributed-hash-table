@@ -10,8 +10,8 @@ import (
 )
 
 type Server struct {
-	Host           string
-	Port           int
+	host           string
+	port           int
 	conn           *net.UDPConn
 	ServiceMethods map[string]reflect.Method
 	Service        reflect.Value
@@ -27,50 +27,84 @@ func NewServer(host string, port int) (*Server, error) {
 		return nil, err
 	}
 	return &Server{
-		Host:           host,
-		Port:           port,
+		host:           host,
+		port:           port,
 		conn:           conn,
 		ServiceMethods: make(map[string]reflect.Method),
 	}, nil
 }
 
 func (s *Server) Listen() {
-	fmt.Println("Listening on " + s.Host + ":" + strconv.Itoa(s.Port))
+	fmt.Println("Listening on " + s.host + ":" + strconv.Itoa(s.port))
 	for {
-		buf := make([]byte, 1024)
-		n, sender, err := s.conn.ReadFromUDP(buf)
+		reqBytes, sender, err := s.readRequest()
 		if err != nil {
-			log.Printf("Error reading from UDP socket: %s", err)
-		}
-
-		message := bson.M{}
-		err = bson.Unmarshal(buf[:n], message)
-		if err != nil {
-			log.Printf("Error unmarshalling message: %s", err)
+			log.Println("Error reading request: " + err.Error())
 		} else {
-			if message["type"] == "Ping" {
-				response := bson.M{"ping": "pong"}
-				bytes, err := bson.Marshal(response)
-				if err != nil {
-					log.Printf("Error marshalling response: %s", err)
+			reqObj, parseErr := s.unmarshalRequest(reqBytes)
+			if parseErr != nil {
+				log.Println("Error parsing request: " + parseErr.Error())
+			} else {
+				sendErr := s.sendResponse(reqObj, sender)
+				if sendErr != nil {
+					log.Println("Error sending response: " + sendErr.Error())
 				}
-				s.sendResponse(bytes, sender)
 			}
 		}
 	}
 }
 
-func (s *Server) sendResponse(message []byte, sender *net.UDPAddr) {
-	_, err := s.conn.WriteToUDP(message, sender)
+func (s *Server) readRequest() ([]byte, *net.UDPAddr, error) {
+	buf := make([]byte, 1024)
+	n, sender, err := s.conn.ReadFromUDP(buf)
 	if err != nil {
-		log.Printf("Error writing to UDP socket: %s", err)
+		return nil, nil, err
 	}
+	return buf[:n], sender, err
+}
+
+func (s *Server) unmarshalRequest(req []byte) (bson.M, error) {
+	args := bson.M{}
+	err := bson.Unmarshal(req, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return args, nil
+}
+
+func (s *Server) sendResponse(request bson.M, sender *net.UDPAddr) error {
+	op := request["q"].(string)
+	reply := bson.M{}
+	var err error
+
+	switch op {
+	case "BsonPing":
+		request["q"] = "BsonPong"
+		err = s.Call(request, reply)
+		if err != nil {
+			return err
+		}
+	}
+
+	respBytes, err := bson.Marshal(reply)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.conn.WriteToUDP(respBytes, sender)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func isValidMethod(serviceType reflect.Type, method reflect.Method) bool {
-	return method.Type.NumIn() == 2 &&
+	return method.Type.NumIn() == 3 &&
 		method.Type.In(0) == serviceType &&
 		method.Type.In(1) == reflect.TypeOf(bson.M{}) &&
+		method.Type.In(2) == reflect.TypeOf(bson.M{}) &&
 		method.Type.NumOut() == 1 &&
 		method.Type.Out(0) == reflect.TypeOf((*error)(nil)).Elem()
 }
@@ -96,16 +130,18 @@ func (s *Server) Register(receiver any) error {
 	return nil
 }
 
-func (s *Server) Call(args bson.M) error {
-	methodName := args["type"].(string)
+func (s *Server) Call(args bson.M, reply bson.M) error {
+	methodName := args["q"].(string)
 	method, ok := s.ServiceMethods[methodName]
 	if !ok {
 		return fmt.Errorf("no such method: " + methodName)
 	}
-	val := method.Func.Call([]reflect.Value{s.Service, reflect.ValueOf(args)})
-	err := val[0].Interface()
-	if err != nil {
-		return err.(error)
+
+	fnArgs := []reflect.Value{s.Service, reflect.ValueOf(args), reflect.ValueOf(reply)}
+	errVal := method.Func.Call(fnArgs)[0].Interface()
+	if errVal != nil {
+		return errVal.(error)
 	}
+
 	return nil
 }

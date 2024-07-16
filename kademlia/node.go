@@ -12,6 +12,7 @@ import (
 )
 
 type Node struct {
+	// refactor this just into ID, host, and port
 	ID      *big.Int
 	Host    string
 	Port    int
@@ -30,7 +31,7 @@ func NewNode(host string, port int) Node {
 }
 
 func (n Node) Tuple() bson.A {
-	return bson.A{n.Host, n.Port, n.ID}
+	return bson.A{n.ID, n.Host, int32(n.Port)}
 }
 
 func (n Node) String() string {

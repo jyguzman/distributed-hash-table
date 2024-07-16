@@ -13,7 +13,7 @@ import (
 type Server struct {
 	Node          Node
 	rpcServer     *rpc.Server
-	BsonRpcServer *bsonrpc.Server
+	bsonRpcServer *bsonrpc.Server
 	dataStore     map[string][]byte
 	RoutingTable  *RoutingTable
 }
@@ -26,6 +26,10 @@ func NewServer(host string, port int) (Server, error) {
 		RoutingTable: NewRoutingTable(n, 3),
 	}
 	rpcServer := rpc.NewServer()
+	err := rpcServer.Register(&s)
+	if err != nil {
+		return Server{}, err
+	}
 	bsonRpcServer, err := bsonrpc.NewServer(host, port)
 	if err != nil {
 		return Server{}, err
@@ -34,11 +38,7 @@ func NewServer(host string, port int) (Server, error) {
 	if err != nil {
 		return Server{}, err
 	}
-	err = rpcServer.Register(&s)
-	if err != nil {
-		return Server{}, err
-	}
-	s.BsonRpcServer = bsonRpcServer
+	s.bsonRpcServer = bsonRpcServer
 	s.rpcServer = rpcServer
 	s.UpdateRoutingTable(s.Node)
 	return s, nil
@@ -51,7 +51,7 @@ func (s Server) Listen() {
 		log.Fatal("listen error:", err)
 	}
 	go s.rpcServer.Accept(l)
-	go s.BsonRpcServer.Listen()
+	go s.bsonRpcServer.Listen()
 }
 
 func (s Server) Bootstrap(servers ...Server) {
@@ -62,17 +62,8 @@ func (s Server) Bootstrap(servers ...Server) {
 	}
 }
 
-func (s Server) UpdateBucketList(position int, node Node) {
-	s.Node.Buckets[position].Append(node)
-}
-
 func (s Server) UpdateRoutingTable(node Node) {
 	s.RoutingTable.Add(node)
-}
-
-func (s Server) DummyMethod(m bson.M) error {
-	fmt.Println("Dummy Method")
-	return fmt.Errorf("nkjsdfjskdfsdj")
 }
 
 func (s Server) BsonPing(other Server) error {
@@ -80,16 +71,27 @@ func (s Server) BsonPing(other Server) error {
 	if err != nil {
 		return err
 	}
+
 	args := bson.M{
-		"type": "Ping",
+		"q":    "BsonPing",
 		"id":   s.Node.ID,
+		"host": s.Node.Host,
+		"port": int32(s.Node.Port),
 	}
+
 	reply := bson.M{}
 	err = client.Call(args, reply)
 	if err != nil {
 		return err
 	}
-	fmt.Println("Did ping and got", reply)
+	fmt.Println("PONG:", reply)
+	return nil
+}
+
+func (s Server) BsonPong(callArgs bson.M, reply bson.M) error {
+	id, host, port := callArgs["id"].(string), callArgs["host"].(string), callArgs["port"].(int32)
+	fmt.Printf("PING: (ID: %s HOST: \"%s\" PORT: %d)\n", id, host, port)
+	reply["id"] = s.Node.ID
 	return nil
 }
 

@@ -1,7 +1,6 @@
 package bsonrpc
 
 import (
-	"fmt"
 	"go-dht/bson"
 	"net"
 	"strconv"
@@ -11,13 +10,11 @@ type Client struct {
 	conn *net.UDPConn
 }
 
-func (c Client) Call(args bson.M, reply bson.M) error {
+func (c Client) Call(args bson.M, reply any) error {
 	bytes, err := bson.Marshal(args)
 	if err != nil {
 		return err
 	}
-	fmt.Println("bytes")
-	fmt.Println(bytes)
 
 	_, err = c.conn.Write(bytes)
 	if err != nil {
@@ -36,11 +33,11 @@ func (c Client) Call(args bson.M, reply bson.M) error {
 }
 
 func Dial(host string, port int) (*Client, error) {
-	addr, err := net.ResolveUDPAddr("udp", host+":"+strconv.Itoa(port))
+	serverAddr, err := net.ResolveUDPAddr("udp", host+":"+strconv.Itoa(port))
 	if err != nil {
 		return nil, err
 	}
-	conn, err := net.DialUDP("udp", nil, addr)
+	conn, err := net.DialUDP("udp", nil, serverAddr)
 	if err != nil {
 		return nil, err
 	}
