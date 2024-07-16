@@ -4,18 +4,28 @@ import (
 	"fmt"
 	"go-dht/bson"
 	"go-dht/kademlia"
+	"math/big"
 )
 
-type Dummy struct {
-	Thing int
+func initServers(n int) ([]kademlia.Server, error) {
+	servers := make([]kademlia.Server, n)
+	var err error
+	for i := 0; i < len(servers); i++ {
+		servers[i], err = kademlia.NewServer("localhost", 8000+i)
+		if err != nil {
+			return nil, err
+		}
+		servers[i].Listen()
+	}
+	return servers, nil
 }
 
 func main() {
+	id := kademlia.HashToBigInt(kademlia.GetHash("localhost:8000"))
+	fmt.Println(id.Text(16))
 	doc := bson.D{
-		{"hello", "world"},
-		{"32_number", int32(1)},
-		{"64_number", int64(64)},
-		{"boolean", true},
+		{"id", id},
+		{"null", nil},
 	}
 	bytes, err := bson.Marshal(doc)
 	if err != nil {
@@ -28,102 +38,26 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(m)
-	//fmt.Println(doc)
-	//bServer, err := bsonrpc.NewServer("localhost", 8000)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//server.Listen()
-	//client, err := bsonrpc.Dial("localhost", 8000)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//client.Call("PING")
-	//if err != nil {
-	//	panic(err)
-	//}
-	server := kademlia.NewServer("localhost", 8001)
-	serverTwo := kademlia.NewServer("localhost", 8002)
-	server.Listen()
-	serverTwo.Listen()
-	err = server.BsonPing(serverTwo)
-	if err != nil {
-		panic(err)
+	val, ok := new(big.Int).SetString(m["id"].(string), 16)
+	if !ok {
+		panic("invalid id")
 	}
-	//fmt.Println(server.BsonRpcServer.ServiceMethods)
-	//args := bson.M{
-	//	"type": "DummyMethod",
-	//}
-	//err := server.BsonRpcServer.Call(args)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-	//val := reflect.ValueOf(args)
-	//server.BsonRpcServer.ServiceMethods["BSONDummyMethod"].Method.Func.Call([]reflect.Value{server.BsonRpcServer.Service, val})
-	//serverTwo := kademlia.NewServer("localhost", 8002)
-	//serverThree := kademlia.NewServer("localhost", 8003)
-	//serverFour := kademlia.NewServer("localhost", 8004)
-	//serverFive := kademlia.NewServer("localhost", 8005)
-	//serverSix := kademlia.NewServer("localhost", 8006)
-	//serverSeven := kademlia.NewServer("localhost", 8007)
-	//serverEight := kademlia.NewServer("localhost", 8008)
-	//serverNine := kademlia.NewServer("localhost", 8009)
-	//server.Listen()
-	//serverTwo.Listen()
-	//serverThree.Listen()
-	//serverFour.Listen()
-	//serverFive.Listen()
-	//serverSix.Listen()
-	//serverSeven.Listen()
-	//serverEight.Listen()
-	//serverNine.Listen()
-	//err := server.Ping(serverTwo)
-	//err = server.Ping(serverThree)
-	//err = server.Ping(serverFour)
-	//err = server.Ping(serverFive)
-	//err = server.Ping(serverSix)
-	//err = server.Ping(serverSeven)
-	//err = server.Ping(serverEight)
-	//err = server.Ping(serverNine)
+	fmt.Println(val.Text(16))
+	//servers, err := initServers(10)
+	//err = servers[0].BsonPing(servers[1])
 	//if err != nil {
 	//	panic(err)
 	//}
-	//fmt.Println(server.Node.Buckets[1].String())
+	//for i := 1; i < len(servers); i++ {
+	//	err := servers[0].Ping(servers[i])
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//}
 	//fmt.Println("Root:")
-	//fmt.Println(server.RoutingTable.String())
+	//fmt.Println(servers[0].RoutingTable.String())
 	//fmt.Println()
-	//kNearest := server.RoutingTable.GetNearest(serverSeven.Node.ID)
+	//kNearest := servers[0].RoutingTable.GetNearest(servers[6].Node.ID)
 	//fmt.Println("K nearest:")
 	//fmt.Println(kNearest)
-	//fmt.Println(server.Node.ID)
-	//fmt.Println(serverTwo.Node.ID)
-	//fmt.Println(serverThree.Node.ID)
-	//fmt.Println(serverFour.Node.ID)
-	//fmt.Println(serverFive.Node.ID)
-	//fmt.Println(serverSix.Node.ID)
-	//fmt.Println(serverSeven.Node.ID)
-	//fmt.Println(serverEight.Node.ID)
-	//fmt.Println(serverNine.Node.ID)
-	//fmt.Println(server.RoutingTable.BucketPrefixes)
-	//fmt.Println(serverTwo.Node.RoutingTable)
-	//fmt.Println(server.Node.Buckets[1].String())
-	//fmt.Println(serverTwo.Node.Buckets[1].String())
-	//fmt.Println(network.RandNumber())
-	//hash := network.GetHash("random key")
-	//fmt.Println(network.HashToBigInt(hash), network.HashToBigInt(hash).BitLen())
-	//bytes, err := bson.Serialize(nil)
-	//
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println(bytes)
-	//rt := kademlia.NewRoutingTable(2)
-	//nodeOne := kademlia.NewNode("localhost", 8001)
-	//nodeTwo := kademlia.NewNode("localhost", 8002)
-	//nodeThree := kademlia.NewNode("localhost", 8003)
-	//nodeFour := kademlia.NewNode("localhost", 8004)
-	//nodeFive := kademlia.NewNode("localhost", 8005)
-	//nodeSix := kademlia.NewNode("localhost", 8006)
-	//nodeSeven := kademlia.NewNode("localhost", 8007)
-	//nodeEight := kademlia.NewNode("localhost", 8008)
 }

@@ -18,7 +18,7 @@ type Server struct {
 	RoutingTable  *RoutingTable
 }
 
-func NewServer(host string, port int) Server {
+func NewServer(host string, port int) (Server, error) {
 	n := NewNode(host, port)
 	s := Server{
 		Node:         n,
@@ -28,20 +28,20 @@ func NewServer(host string, port int) Server {
 	rpcServer := rpc.NewServer()
 	bsonRpcServer, err := bsonrpc.NewServer(host, port)
 	if err != nil {
-		log.Fatal(err)
+		return Server{}, err
 	}
 	err = bsonRpcServer.Register(&s)
 	if err != nil {
-		log.Fatal(err)
+		return Server{}, err
 	}
 	err = rpcServer.Register(&s)
 	if err != nil {
-		log.Fatal(err)
+		return Server{}, err
 	}
 	s.BsonRpcServer = bsonRpcServer
 	s.rpcServer = rpcServer
 	s.UpdateRoutingTable(s.Node)
-	return s
+	return s, nil
 }
 
 func (s Server) Listen() {
@@ -82,6 +82,7 @@ func (s Server) BsonPing(other Server) error {
 	}
 	args := bson.M{
 		"type": "Ping",
+		"id":   s.Node.ID,
 	}
 	reply := bson.M{}
 	err = client.Call(args, reply)
@@ -123,26 +124,6 @@ func (s Server) Put(key string, value any) error {
 func (s Server) Get(key string) any {
 	return nil
 }
-
-//func (s Server) BSONPing(m bson.M) error {
-//	//client, err := s.ContactUDP(other)
-//	//if err != nil {
-//	//	return err
-//	//}
-//	args := bson.M{
-//		"type": "ping",
-//		"sender": bson.M{
-//			"id":   s.Node.ID,
-//			"host": s.Node.Host,
-//			"port": s.Node.Port,
-//		},
-//	}
-//	err = client.Call(args)
-//	if err != nil {
-//		return err
-//	}
-//	return nil
-//}
 
 func (s Server) Store(node Node, key string, data []byte) error {
 	args := CallArgs{

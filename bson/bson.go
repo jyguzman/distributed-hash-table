@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
-	"slices"
 	"strconv"
 )
 
@@ -172,10 +171,9 @@ func MarshalValue(val any) (Type, []byte, error) {
 		bsonType = Long
 		err = binary.Write(buf, binary.LittleEndian, vt)
 	case *big.Int:
-		bsonType = BinData
-		intBytes := vt.Bytes()
-		slices.Reverse(intBytes)
-		err = binary.Write(buf, binary.LittleEndian, intBytes)
+		bsonType = String
+		hexString := vt.Text(16)
+		err = binary.Write(buf, binary.LittleEndian, []byte(hexString))
 	case string:
 		bsonType = String
 		err = binary.Write(buf, binary.LittleEndian, []byte(vt))
@@ -226,7 +224,10 @@ func Unmarshal(data []byte, obj any) error {
 		}
 		field := string(data[fieldStart:i])
 		i++
-		v, newIdx := unmarshalValue(data, bsonType, i)
+		v, newIdx, err := unmarshalValue(data, bsonType, i)
+		if err != nil {
+			return err
+		}
 		i = newIdx
 		switch ot := obj.(type) {
 		case M:
@@ -240,9 +241,8 @@ func Unmarshal(data []byte, obj any) error {
 	return nil
 }
 
-func unmarshalValue(v []byte, vType Type, idx uint32) (any, uint32) {
+func unmarshalValue(v []byte, vType Type, idx uint32) (any, uint32, error) {
 	// Add error handling (incorrect format for String, etc.)
-	// Negative numbers (for Int, Long, Double)?
 	switch vType {
 	case String:
 		strLen := binary.LittleEndian.Uint32(v[idx : idx+4])
@@ -252,25 +252,38 @@ func unmarshalValue(v []byte, vType Type, idx uint32) (any, uint32) {
 			i++
 		}
 		i++
-		return string(v[start : i-1]), i
+		return string(v[start : i-1]), i, nil
 	case Int:
 		start := idx
 		idx += 4
-		return int32(binary.LittleEndian.Uint32(v[start : idx+4])), idx
+		return int32(binary.LittleEndian.Uint32(v[start:idx])), idx, nil
 	case Long:
 		start := idx
 		idx += 8
-		return int64(binary.LittleEndian.Uint64(v[start : idx+8])), idx
-	//case Double:
-	//	start := idx
-	//	idx += 8
-	case Bool:
+		return int64(binary.LittleEndian.Uint64(v[start:idx])), idx, nil
+	case Double:
 		start := idx
-		idx += 1
-		if v[start] == 0x00 {
-			return false, idx
+		idx += 8
+		var float float64
+		buf := bytes.NewReader(v[start:idx])
+		err := binary.Read(buf, binary.LittleEndian, &float)
+		if err != nil {
+			return nil, 0, err
 		}
-		return true, idx
+		return float, idx, nil
+	case Bool:
+		if v[idx] == 0x00 {
+			return false, idx + 1, nil
+		}
+		return true, idx + 1, nil
+	case BinData:
+		return nil, 0, nil
+	case Object:
+		return nil, 0, nil
+	case Array:
+		return nil, 0, nil
+	case Null:
+		return nil, idx + 1, nil
 	}
-	return nil, 0
+	return nil, 0, nil
 }
