@@ -2,7 +2,6 @@ package kademlia
 
 import (
 	"fmt"
-	"go-dht/bson"
 	"go-dht/bsonrpc"
 	"log"
 	"net"
@@ -70,12 +69,6 @@ func (s Server) DisplayRoutingTable() {
 }
 
 func (s Server) Put(key string, value any) error {
-	_, data, err := bson.MarshalValue(value)
-	if err != nil {
-		return err
-	}
-	keyHash := GetHash(key)
-	fmt.Println(keyHash, data)
 	return nil
 }
 

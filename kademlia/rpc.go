@@ -26,32 +26,53 @@ func (s Server) SendPing(other Server) error {
 		return err
 	}
 
-	s.UpdateRoutingTable(FromTuple(bson.A{other.Node.ID, other.Node.Host, other.Node.Port}))
+	node := FromTuple(bson.A{other.Node.Host, other.Node.Port, other.Node.ID})
+	s.UpdateRoutingTable(node)
 	fmt.Println("PONG", reply)
 	return nil
 }
 
-func (s Server) SendFindNodes(key *big.Int, other Server) ([]bson.A, error) {
+func (s Server) SendFindNodes(key string, other Server) ([]bson.A, error) {
 	client, err := s.Contact(other)
 	if err != nil {
 		return nil, err
 	}
 
 	args := bson.M{
-		"q":    "FindNodes",
-		"id":   s.Node.ID,
-		"host": s.Node.Host,
-		"port": s.Node.Port,
-		"key":  key,
+		"q":   "FindNodes",
+		"id":  s.Node.ID,
+		"key": HashToBigInt(GetHash(key)),
 	}
-	reply := bson.M{}
 
+	reply := bson.M{}
 	err = client.Call(args, reply)
 	if err != nil {
 		return nil, err
 	}
 
 	return reply["nodes"].([]bson.A), nil
+}
+
+func (s Server) SendStore(key string, val any, other Server) error {
+	client, err := s.Contact(other)
+	if err != nil {
+		return err
+	}
+
+	args := bson.M{
+		"q":   "Store",
+		"id":  s.Node.ID,
+		"key": key,
+		"val": val,
+	}
+
+	reply := bson.M{}
+	err = client.Call(args, reply)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s Server) Ping(callArgs bson.M, reply bson.M) error {
@@ -68,6 +89,20 @@ func (s Server) Ping(callArgs bson.M, reply bson.M) error {
 }
 
 func (s Server) FindNodes(callArgs bson.M, reply bson.M) error {
+	key := callArgs["key"].(*big.Int)
+	reply["nodes"] = s.routingTable.GetNearest(key)
+	return nil
+}
+
+func (s Server) Store(callArgs bson.M, reply bson.M) error {
+	key := callArgs["key"].(string)
+	val := callArgs["val"]
+	_, valBytes, err := bson.MarshalValue(val)
+	if err != nil {
+		return err
+	}
+	s.dataStore[key] = valBytes
+	fmt.Println(key)
 	return nil
 }
 
