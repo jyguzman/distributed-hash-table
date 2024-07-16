@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go-dht/bson"
+	"go-dht/kademlia"
 )
 
 type Dummy struct {
@@ -41,14 +42,14 @@ func main() {
 	//if err != nil {
 	//	panic(err)
 	//}
-	//server := kademlia.NewServer("localhost", 8001)
-	//serverTwo := kademlia.NewServer("localhost", 8002)
-	//server.Listen()
-	//serverTwo.Listen()
-	//err := server.BsonPing(serverTwo)
-	//if err != nil {
-	//	panic(err)
-	//}
+	server := kademlia.NewServer("localhost", 8001)
+	serverTwo := kademlia.NewServer("localhost", 8002)
+	server.Listen()
+	serverTwo.Listen()
+	err = server.BsonPing(serverTwo)
+	if err != nil {
+		panic(err)
+	}
 	//fmt.Println(server.BsonRpcServer.ServiceMethods)
 	//args := bson.M{
 	//	"type": "DummyMethod",

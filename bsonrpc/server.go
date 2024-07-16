@@ -43,8 +43,19 @@ func (s *Server) Listen() {
 			log.Printf("Error reading from UDP socket: %s", err)
 		}
 
-		if string(buf[:n]) == "Ping" {
-			s.sendResponse([]byte("Pong"), sender)
+		message := bson.M{}
+		err = bson.Unmarshal(buf[:n], message)
+		if err != nil {
+			log.Printf("Error unmarshalling message: %s", err)
+		} else {
+			if message["type"] == "Ping" {
+				response := bson.M{"ping": "pong"}
+				bytes, err := bson.Marshal(response)
+				if err != nil {
+					log.Printf("Error marshalling response: %s", err)
+				}
+				s.sendResponse(bytes, sender)
+			}
 		}
 	}
 }

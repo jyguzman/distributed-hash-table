@@ -84,7 +84,7 @@ func (s Server) BsonPing(other Server) error {
 		"type": "Ping",
 	}
 	reply := bson.M{}
-	err = client.Call(args["type"].(string), reply)
+	err = client.Call(args, reply)
 	if err != nil {
 		return err
 	}
