@@ -13,29 +13,33 @@ import (
 type Server struct {
 	Node          Node
 	rpcServer     *rpc.Server
-	bsonRpcServer *bsonrpc.Server
+	BsonRpcServer *bsonrpc.Server
 	dataStore     map[string][]byte
 	RoutingTable  *RoutingTable
 }
 
 func NewServer(host string, port int) Server {
 	n := NewNode(host, port)
+	s := Server{
+		Node:         n,
+		dataStore:    make(map[string][]byte),
+		RoutingTable: NewRoutingTable(n, 3),
+	}
 	rpcServer := rpc.NewServer()
-	bsonRpcServer, err := bsonrpc.NewServer(host, port, n.ID)
+	bsonRpcServer, err := bsonrpc.NewServer(host, port)
 	if err != nil {
 		log.Fatal(err)
 	}
-	s := Server{
-		Node:          n,
-		rpcServer:     rpcServer,
-		bsonRpcServer: bsonRpcServer,
-		dataStore:     make(map[string][]byte),
-		RoutingTable:  NewRoutingTable(n, 3),
+	err = bsonRpcServer.Register(&s)
+	if err != nil {
+		log.Fatal(err)
 	}
 	err = rpcServer.Register(&s)
 	if err != nil {
 		log.Fatal(err)
 	}
+	s.BsonRpcServer = bsonRpcServer
+	s.rpcServer = rpcServer
 	s.UpdateRoutingTable(s.Node)
 	return s
 }
@@ -47,6 +51,7 @@ func (s Server) Listen() {
 		log.Fatal("listen error:", err)
 	}
 	go s.rpcServer.Accept(l)
+	go s.BsonRpcServer.Listen()
 }
 
 func (s Server) Bootstrap(servers ...Server) {
@@ -63,6 +68,28 @@ func (s Server) UpdateBucketList(position int, node Node) {
 
 func (s Server) UpdateRoutingTable(node Node) {
 	s.RoutingTable.Add(node)
+}
+
+func (s Server) DummyMethod(m bson.M) error {
+	fmt.Println("Dummy Method")
+	return fmt.Errorf("nkjsdfjskdfsdj")
+}
+
+func (s Server) BsonPing(other Server) error {
+	client, err := s.ContactUDP(other)
+	if err != nil {
+		return err
+	}
+	args := bson.M{
+		"type": "Ping",
+	}
+	reply := bson.M{}
+	err = client.Call(args["type"].(string), reply)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Did ping and got", reply)
+	return nil
 }
 
 func (s Server) Ping(other Server) error {
@@ -96,6 +123,26 @@ func (s Server) Put(key string, value any) error {
 func (s Server) Get(key string) any {
 	return nil
 }
+
+//func (s Server) BSONPing(m bson.M) error {
+//	//client, err := s.ContactUDP(other)
+//	//if err != nil {
+//	//	return err
+//	//}
+//	args := bson.M{
+//		"type": "ping",
+//		"sender": bson.M{
+//			"id":   s.Node.ID,
+//			"host": s.Node.Host,
+//			"port": s.Node.Port,
+//		},
+//	}
+//	err = client.Call(args)
+//	if err != nil {
+//		return err
+//	}
+//	return nil
+//}
 
 func (s Server) Store(node Node, key string, data []byte) error {
 	args := CallArgs{
