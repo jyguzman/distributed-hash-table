@@ -1,7 +1,8 @@
 package main
 
 import (
-	"go-dht/kademlia"
+	"fmt"
+	"go-dht/bson"
 )
 
 type Dummy struct {
@@ -9,6 +10,24 @@ type Dummy struct {
 }
 
 func main() {
+	doc := bson.D{
+		{"hello", "world"},
+		{"32_number", int32(1)},
+		{"64_number", int64(64)},
+		{"boolean", true},
+	}
+	bytes, err := bson.Marshal(doc)
+	if err != nil {
+		panic(err)
+	}
+
+	m := bson.M{}
+	err = bson.Unmarshal(bytes, m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(m)
+	//fmt.Println(doc)
 	//bServer, err := bsonrpc.NewServer("localhost", 8000)
 	//if err != nil {
 	//	panic(err)
@@ -22,14 +41,14 @@ func main() {
 	//if err != nil {
 	//	panic(err)
 	//}
-	server := kademlia.NewServer("localhost", 8001)
-	serverTwo := kademlia.NewServer("localhost", 8002)
-	server.Listen()
-	serverTwo.Listen()
-	err := server.BsonPing(serverTwo)
-	if err != nil {
-		panic(err)
-	}
+	//server := kademlia.NewServer("localhost", 8001)
+	//serverTwo := kademlia.NewServer("localhost", 8002)
+	//server.Listen()
+	//serverTwo.Listen()
+	//err := server.BsonPing(serverTwo)
+	//if err != nil {
+	//	panic(err)
+	//}
 	//fmt.Println(server.BsonRpcServer.ServiceMethods)
 	//args := bson.M{
 	//	"type": "DummyMethod",

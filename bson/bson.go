@@ -201,7 +201,7 @@ func MarshalPair(p Pair) ([]byte, int32, error) {
 	err = binary.Write(buf, binary.LittleEndian, []byte(p.Key))
 	err = binary.Write(buf, binary.LittleEndian, byte(0x00))
 	if valType == String {
-		err = binary.Write(buf, binary.LittleEndian, int32(len(valBytes)))
+		err = binary.Write(buf, binary.LittleEndian, int32(len(valBytes)+1))
 	}
 	err = binary.Write(buf, binary.LittleEndian, valBytes)
 	if valType == String {
@@ -212,4 +212,65 @@ func MarshalPair(p Pair) ([]byte, int32, error) {
 	}
 	bufBytes := buf.Bytes()
 	return bufBytes, int32(len(bufBytes)), nil
+}
+
+func Unmarshal(data []byte, obj any) error {
+	size := binary.LittleEndian.Uint32(data[0:4])
+	i := uint32(4)
+	for i < size-1 {
+		bsonType := Type(data[i])
+		i++
+		fieldStart := i
+		for data[i] != byte(0x00) {
+			i++
+		}
+		field := string(data[fieldStart:i])
+		i++
+		v, newIdx := unmarshalValue(data, bsonType, i)
+		i = newIdx
+		switch ot := obj.(type) {
+		case M:
+			ot[field] = v
+		case *M:
+			(*ot)[field] = v
+		case *D:
+			*ot = append(*ot, Pair{Key: field, Val: v})
+		}
+	}
+	return nil
+}
+
+func unmarshalValue(v []byte, vType Type, idx uint32) (any, uint32) {
+	// Add error handling (incorrect format for String, etc.)
+	// Negative numbers (for Int, Long, Double)?
+	switch vType {
+	case String:
+		strLen := binary.LittleEndian.Uint32(v[idx : idx+4])
+		i := idx + 4
+		start := i
+		for i < strLen+start-1 {
+			i++
+		}
+		i++
+		return string(v[start : i-1]), i
+	case Int:
+		start := idx
+		idx += 4
+		return int32(binary.LittleEndian.Uint32(v[start : idx+4])), idx
+	case Long:
+		start := idx
+		idx += 8
+		return int64(binary.LittleEndian.Uint64(v[start : idx+8])), idx
+	//case Double:
+	//	start := idx
+	//	idx += 8
+	case Bool:
+		start := idx
+		idx += 1
+		if v[start] == 0x00 {
+			return false, idx
+		}
+		return true, idx
+	}
+	return nil, 0
 }
