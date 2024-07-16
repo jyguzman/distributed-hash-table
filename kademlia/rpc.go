@@ -2,49 +2,80 @@ package kademlia
 
 import (
 	"fmt"
+	"go-dht/bson"
+	"go-dht/bsonrpc"
 	"math/big"
 )
 
-type CallArgs struct {
-	Caller Node
-	Key    *big.Int
-	Data   []byte
-	RpcId  *big.Int
-}
+func (s Server) SendPing(other Server) error {
+	client, err := s.Contact(other)
+	if err != nil {
+		return err
+	}
 
-type Reply struct {
-	Recipient Node
-	Message   string
-	Value     []byte
-	Nodes     []Node
-	Code      int
-}
+	args := bson.M{
+		"q":    "Ping",
+		"id":   s.Node.ID,
+		"host": s.Node.Host,
+		"port": int32(s.Node.Port),
+	}
 
-func (s Server) PingRpc(ca *CallArgs, reply *Reply) error {
-	reply.Recipient = s.Node
-	reply.Message = fmt.Sprintf("PONG %v", ca.RpcId)
-	reply.Code = 1
-	s.UpdateRoutingTable(ca.Caller)
+	reply := bson.M{}
+	err = client.Call(args, reply)
+	if err != nil {
+		return err
+	}
+
+	s.UpdateRoutingTable(FromTuple(bson.A{other.Node.ID, other.Node.Host, other.Node.Port}))
+	fmt.Println("PONG", reply)
 	return nil
 }
 
-func (s Server) StoreRpc(ca *CallArgs, reply *Reply) error {
-	caller, rpcId := ca.Caller, ca.RpcId
-	key, value := ca.Key, ca.Data
-	reply.Recipient = s.Node
-	fmt.Println(caller, key, value, rpcId)
+func (s Server) SendFindNodes(key *big.Int, other Server) ([]bson.A, error) {
+	client, err := s.Contact(other)
+	if err != nil {
+		return nil, err
+	}
+
+	args := bson.M{
+		"q":    "FindNodes",
+		"id":   s.Node.ID,
+		"host": s.Node.Host,
+		"port": s.Node.Port,
+		"key":  key,
+	}
+	reply := bson.M{}
+
+	err = client.Call(args, reply)
+	if err != nil {
+		return nil, err
+	}
+
+	return reply["nodes"].([]bson.A), nil
+}
+
+func (s Server) Ping(callArgs bson.M, reply bson.M) error {
+	id, host, port := callArgs["id"].(string), callArgs["host"].(string), int(callArgs["port"].(int32))
+	ID, ok := new(big.Int).SetString(id, 16)
+	if !ok {
+		return fmt.Errorf("PONG: Invalid ID: %s", id)
+	}
+	node := FromTuple(bson.A{ID, host, port})
+	fmt.Printf("PING %s\n", node)
+	s.UpdateRoutingTable(node)
+	reply["id"] = s.Node.ID
 	return nil
 }
 
-func (s Server) FindNode(ca *CallArgs, reply *Reply) error {
-	caller, rpcId := ca.Caller, ca.RpcId
-	reply.Nodes = s.RoutingTable.GetNearest(ca.Key)
-	reply.Recipient = s.Node
-	fmt.Println(caller, rpcId)
+func (s Server) FindNodes(callArgs bson.M, reply bson.M) error {
 	return nil
 }
 
-func (s Server) FindValue(ca *CallArgs, reply *Reply) error {
-	reply.Recipient = s.Node
-	return nil
+func (s Server) Contact(other Server) (*bsonrpc.Client, error) {
+	client, err := bsonrpc.Dial(other.Node.Host, other.Node.Port)
+	if err != nil {
+		return nil, fmt.Errorf("error contacting (UDP) node at %s", other.Node.Host)
+	}
+
+	return client, nil
 }

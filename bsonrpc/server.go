@@ -74,25 +74,18 @@ func (s *Server) unmarshalRequest(req []byte) (bson.M, error) {
 }
 
 func (s *Server) sendResponse(request bson.M, sender *net.UDPAddr) error {
-	op := request["q"].(string)
 	reply := bson.M{}
-	var err error
-
-	switch op {
-	case "BsonPing":
-		request["q"] = "BsonPong"
-		err = s.Call(request, reply)
-		if err != nil {
-			return err
-		}
-	}
-
-	respBytes, err := bson.Marshal(reply)
+	err := s.callMethod(request, reply)
 	if err != nil {
 		return err
 	}
 
-	_, err = s.conn.WriteToUDP(respBytes, sender)
+	replyBytes, err := bson.Marshal(reply)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.conn.WriteToUDP(replyBytes, sender)
 	if err != nil {
 		return err
 	}
@@ -130,7 +123,7 @@ func (s *Server) Register(receiver any) error {
 	return nil
 }
 
-func (s *Server) Call(args bson.M, reply bson.M) error {
+func (s *Server) callMethod(args bson.M, reply bson.M) error {
 	methodName := args["q"].(string)
 	method, ok := s.ServiceMethods[methodName]
 	if !ok {

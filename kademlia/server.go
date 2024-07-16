@@ -5,28 +5,27 @@ import (
 	"go-dht/bson"
 	"go-dht/bsonrpc"
 	"log"
-	"math/big"
 	"net"
 	"net/rpc"
 )
 
 type Server struct {
 	Node          Node
-	rpcServer     *rpc.Server
+	tcpRpcServer  *rpc.Server
 	bsonRpcServer *bsonrpc.Server
 	dataStore     map[string][]byte
-	RoutingTable  *RoutingTable
+	routingTable  *RoutingTable
 }
 
 func NewServer(host string, port int) (Server, error) {
-	n := NewNode(host, port)
+	n := NewNode(host, port, nil)
 	s := Server{
 		Node:         n,
 		dataStore:    make(map[string][]byte),
-		RoutingTable: NewRoutingTable(n, 3),
+		routingTable: NewRoutingTable(n, 8),
 	}
-	rpcServer := rpc.NewServer()
-	err := rpcServer.Register(&s)
+	tcpRpcServer := rpc.NewServer()
+	err := tcpRpcServer.Register(&s)
 	if err != nil {
 		return Server{}, err
 	}
@@ -39,7 +38,7 @@ func NewServer(host string, port int) (Server, error) {
 		return Server{}, err
 	}
 	s.bsonRpcServer = bsonRpcServer
-	s.rpcServer = rpcServer
+	s.tcpRpcServer = tcpRpcServer
 	s.UpdateRoutingTable(s.Node)
 	return s, nil
 }
@@ -50,67 +49,24 @@ func (s Server) Listen() {
 	if err != nil {
 		log.Fatal("listen error:", err)
 	}
-	go s.rpcServer.Accept(l)
+	go s.tcpRpcServer.Accept(l)
 	go s.bsonRpcServer.Listen()
 }
 
 func (s Server) Bootstrap(servers ...Server) {
 	for _, server := range servers {
 		if server.Node.ID != s.Node.ID {
-			fmt.Println(s.Ping(server))
+			fmt.Println(s.SendPing(server))
 		}
 	}
 }
 
 func (s Server) UpdateRoutingTable(node Node) {
-	s.RoutingTable.Add(node)
+	s.routingTable.Add(node)
 }
 
-func (s Server) BsonPing(other Server) error {
-	client, err := s.ContactUDP(other)
-	if err != nil {
-		return err
-	}
-
-	args := bson.M{
-		"q":    "BsonPing",
-		"id":   s.Node.ID,
-		"host": s.Node.Host,
-		"port": int32(s.Node.Port),
-	}
-
-	reply := bson.M{}
-	err = client.Call(args, reply)
-	if err != nil {
-		return err
-	}
-	fmt.Println("PONG:", reply)
-	return nil
-}
-
-func (s Server) BsonPong(callArgs bson.M, reply bson.M) error {
-	id, host, port := callArgs["id"].(string), callArgs["host"].(string), callArgs["port"].(int32)
-	fmt.Printf("PING: (ID: %s HOST: \"%s\" PORT: %d)\n", id, host, port)
-	reply["id"] = s.Node.ID
-	return nil
-}
-
-func (s Server) Ping(other Server) error {
-	client, err := s.Contact(other)
-	if err != nil {
-		return err
-	}
-	args := CallArgs{
-		Caller: s.Node,
-		RpcId:  RandNumber(),
-	}
-	var reply Reply
-	err = client.Call("Server.PingRpc", args, &reply)
-	if err != nil {
-		return err
-	}
-	s.UpdateRoutingTable(other.Node)
-	return nil
+func (s Server) DisplayRoutingTable() {
+	fmt.Println(s.routingTable)
 }
 
 func (s Server) Put(key string, value any) error {
@@ -125,67 +81,4 @@ func (s Server) Put(key string, value any) error {
 
 func (s Server) Get(key string) any {
 	return nil
-}
-
-func (s Server) Store(node Node, key string, data []byte) error {
-	args := CallArgs{
-		Caller: s.Node,
-		RpcId:  RandNumber(),
-		Key:    HashToBigInt(GetHash(key)),
-		Data:   data,
-	}
-	fmt.Println(args)
-	return nil
-}
-
-func (s Server) FindNodes(other Server, key string) ([]Node, error) {
-	client, err := s.Contact(other)
-	if err != nil {
-		return nil, err
-	}
-	args := CallArgs{
-		Caller: s.Node,
-		RpcId:  RandNumber(),
-		Key:    HashToBigInt(GetHash(key)),
-	}
-	var reply Reply
-	err = client.Call("Server.FindNode", args, &reply)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println(args, client)
-	return reply.Nodes, nil
-}
-
-func (s Server) GetValue(other Server, key string) ([]Node, error) {
-	client, err := s.Contact(other)
-	if err != nil {
-		return nil, err
-	}
-	args := CallArgs{
-		Caller: s.Node,
-		RpcId:  RandNumber(),
-		Key:    HashToBigInt(GetHash(key)),
-	}
-	keyHash := GetHash(key)
-	xor := new(big.Int).Xor(other.Node.ID, HashToBigInt(keyHash))
-	fmt.Println(args, xor, client)
-	return []Node{}, nil
-}
-
-func (s Server) Contact(other Server) (*rpc.Client, error) {
-	address := fmt.Sprintf("%s:%d", other.Node.Host, other.Node.Port)
-	client, err := rpc.Dial("tcp", address)
-	if err != nil {
-		return nil, fmt.Errorf("error contacting node at %s", address)
-	}
-	return client, nil
-}
-
-func (s Server) ContactUDP(other Server) (*bsonrpc.Client, error) {
-	client, err := bsonrpc.Dial(other.Node.Host, other.Node.Port)
-	if err != nil {
-		return nil, fmt.Errorf("error contacting (UDP) node at %s", other.Node.Host)
-	}
-	return client, nil
 }

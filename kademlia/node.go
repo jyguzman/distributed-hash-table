@@ -12,30 +12,30 @@ import (
 )
 
 type Node struct {
-	// refactor this just into ID, host, and port
-	ID      *big.Int
-	Host    string
-	Port    int
-	K       int
-	Buckets []KBucket
+	ID   *big.Int
+	Host string
+	Port int
 }
 
-func NewNode(host string, port int) Node {
-	addressHash := GetHash(host + ":" + strconv.Itoa(port))
-	buckets := make([]KBucket, 160)
-	return Node{
-		Host: host, Port: port,
-		ID:      HashToBigInt(addressHash),
-		Buckets: buckets,
+func NewNode(host string, port int, id *big.Int) Node {
+	if id == nil {
+		addressHash := GetHash(host + ":" + strconv.Itoa(port))
+		id = HashToBigInt(addressHash)
 	}
+	return Node{Host: host, Port: port, ID: id}
+}
+
+func FromTuple(tuple bson.A) Node {
+	id, host, port := tuple[0].(*big.Int), tuple[1].(string), tuple[2].(int)
+	return NewNode(host, port, id)
 }
 
 func (n Node) Tuple() bson.A {
-	return bson.A{n.ID, n.Host, int32(n.Port)}
+	return bson.A{n.ID, n.Host, n.Port}
 }
 
 func (n Node) String() string {
-	return fmt.Sprintf("(%s:%d %v)", n.Host, n.Port, n.ID)
+	return fmt.Sprintf("(%s:%d %s)", n.Host, n.Port, n.ID.Text(16))
 }
 
 func (n Node) Xor(other Node) *big.Int {

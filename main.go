@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"go-dht/bson"
 	"go-dht/kademlia"
 )
 
@@ -22,34 +20,30 @@ func initServers(n int) ([]kademlia.Server, error) {
 func main() {
 	//id := kademlia.HashToBigInt(kademlia.GetHash("localhost:8000"))
 	//fmt.Println(id.Text(16))
-	doc := bson.D{
-		{"hello", "world"},
-		{"hello", bson.D{
-			{"hello", "world"},
-		}},
-	}
-	bytes, err := bson.Marshal(doc)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(bytes)
-
-	m := bson.M{}
-	err = bson.Unmarshal(bytes, m)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(m)
-	//val, ok := new(big.Int).SetString(m["id"].(string), 16)
-	//if !ok {
-	//	panic("invalid id")
+	//doc := bson.D{
+	//	{"hello", "world"},
+	//	{"hello", bson.D{
+	//		{"hello", "world"},
+	//	}},
 	//}
-	//fmt.Println(val.Text(16))
-	//servers, err := initServers(2)
-	//err = servers[0].BsonPing(servers[1])
+	//bytes, err := bson.Marshal(doc)
 	//if err != nil {
 	//	panic(err)
 	//}
+	//fmt.Println(bytes)
+	//
+	//m := bson.M{}
+	//err = bson.Unmarshal(bytes, m)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println(m)
+	servers, err := initServers(2)
+	err = servers[0].SendPing(servers[1])
+	if err != nil {
+		panic(err)
+	}
+	servers[0].DisplayRoutingTable()
 	//for i := 1; i < len(servers); i++ {
 	//	err := servers[0].Ping(servers[i])
 	//	if err != nil {
