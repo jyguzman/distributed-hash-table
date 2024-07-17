@@ -230,18 +230,56 @@ func Unmarshal(data []byte, obj any) error {
 		}
 		field := string(data[fieldStart:i])
 		i++
-		v, newIdx, err := unmarshalValue(data, bsonType, i)
+		var v any
+		var w any
+		var newIdx uint32
+		var err error
+		if bsonType == Object {
+			switch obj.(type) {
+			case *D:
+				thing := D{}
+				err = Unmarshal(data[i:], &thing)
+				pair := Pair{Key: field, Val: thing}
+				v = pair
+			case *M:
+				v = M{}
+				err = Unmarshal(data[i:], &v)
+			case M:
+				v = M{}
+				err = Unmarshal(data[i:], v)
+			}
+			if err != nil {
+				return err
+			}
+		} else {
+			w, newIdx, err = unmarshalValue(data, bsonType, i)
+		}
 		if err != nil {
 			return err
 		}
 		i = newIdx
-		switch ot := obj.(type) {
-		case M:
-			ot[field] = v
-		case *M:
-			(*ot)[field] = v
-		case *D:
-			*ot = append(*ot, Pair{Key: field, Val: v})
+		var z any
+		if v != nil {
+			z = v
+		} else {
+			z = w
+		}
+		if z != nil {
+			switch ot := obj.(type) {
+			case M:
+				ot[field] = z
+			case *M:
+				(*ot)[field] = z
+			case *D:
+				if v != nil {
+					*ot = append(*ot, v.(Pair))
+				} else {
+					*ot = append(*ot, Pair{Key: field, Val: z})
+				}
+			}
+		}
+		if i == 0 {
+			break
 		}
 	}
 	return nil
@@ -285,7 +323,7 @@ func unmarshalValue(v []byte, vType Type, idx uint32) (any, uint32, error) {
 	case BinData:
 		return nil, 0, nil
 	case Object:
-		// UnmarshalHelper(v, Object, idx)
+		//return Unmarshal(v[idx:], Object, idx)
 	case Array:
 		//return UnmarshalHelper(v, Array, idx)
 	case Null:

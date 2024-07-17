@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"go-dht/bson"
 	"go-dht/kademlia"
 )
 
@@ -20,30 +22,59 @@ func initServers(n int) ([]kademlia.Server, error) {
 func main() {
 	//id := kademlia.HashToBigInt(kademlia.GetHash("localhost:8000"))
 	//fmt.Println(id.Text(16))
-	//doc := bson.D{
-	//	{"hello", "world"},
+	//doc := bson.M{
+	//	"hello": "world",
+	//	"there": bson.M{
+	//		"inner": "world",
+	//		"inner_two": bson.M{
+	//			"inner": "world_two",
+	//		},
+	//	},
+	//}
+	docD := bson.D{
+		{"hello", "world"},
+		{"there", bson.D{
+			{"inner", "world"},
+			{"inner_two", bson.D{
+				{"inner", "world_two"},
+			}},
+		}},
+	}
+	//docT := bson.D{
 	//	{"hello", bson.D{
-	//		{"hello", "world"},
+	//		{"thing", "you"},
 	//	}},
 	//}
-	//bytes, err := bson.Marshal(doc)
-	//if err != nil {
-	//	panic(err)
+	//docE := bson.D{
+	//	{"hello", "world"},
+	//	{"there", bson.D{
+	//		{"inner", "world"},
+	//		{"inner_two", bson.D{
+	//			{"inner", "world_two"},
+	//			{"inner_three", bson.D{
+	//				{"inner", "world_two"},
+	//			}},
+	//		}},
+	//	}},
 	//}
-	//fmt.Println(bytes)
-	//
-	//m := bson.M{}
-	//err = bson.Unmarshal(bytes, m)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println(m)
-	servers, err := initServers(2)
-	err = servers[0].SendPing(servers[1])
+	bytes, err := bson.Marshal(docD)
 	if err != nil {
 		panic(err)
 	}
-	servers[0].DisplayRoutingTable()
+	fmt.Println(bytes)
+
+	m := bson.D{}
+	err = bson.Unmarshal(bytes, &m)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(m)
+	//servers, err := initServers(2)
+	//err = servers[0].SendPing(servers[1])
+	//if err != nil {
+	//	panic(err)
+	//}
+	//servers[0].DisplayRoutingTable()
 	//for i := 1; i < len(servers); i++ {
 	//	err := servers[0].Ping(servers[i])
 	//	if err != nil {

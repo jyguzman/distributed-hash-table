@@ -26,7 +26,7 @@ func (s Server) SendPing(other Server) error {
 		return err
 	}
 
-	node := FromTuple(bson.A{other.Node.Host, other.Node.Port, other.Node.ID})
+	node := FromTuple(bson.A{other.Node.ID, other.Node.Host, other.Node.Port})
 	s.updateRoutingTable(node)
 	fmt.Println("PONG", reply)
 	return nil
@@ -81,7 +81,7 @@ func (s Server) Ping(callArgs bson.M, reply bson.M) error {
 	if !ok {
 		return fmt.Errorf("PONG: Invalid ID: %s", id)
 	}
-	node := FromTuple(bson.A{host, port, ID})
+	node := FromTuple(bson.A{ID, host, port})
 	fmt.Printf("PING %s\n", node)
 	s.updateRoutingTable(node)
 	reply["id"] = s.Node.ID
@@ -108,7 +108,7 @@ func (s Server) Store(callArgs bson.M, reply bson.M) error {
 func (s Server) Contact(other Server) (*bsonrpc.Client, error) {
 	client, err := bsonrpc.Dial(other.Node.Host, other.Node.Port)
 	if err != nil {
-		return nil, fmt.Errorf("error contacting (UDP) node at %s", other.Node.Host)
+		return nil, fmt.Errorf("error contacting (UDP) node at %s", other.Node)
 	}
 
 	return client, nil
