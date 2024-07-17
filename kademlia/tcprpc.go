@@ -28,7 +28,7 @@ func (s Server) PingRpc(ca *CallArgs, reply *Reply) error {
 	reply.Recipient = s.Node
 	reply.Message = fmt.Sprintf("PONG %v", ca.RpcId)
 	reply.Code = 1
-	s.UpdateRoutingTable(ca.Caller)
+	s.updateRoutingTable(ca.Caller)
 	return nil
 }
 
@@ -69,7 +69,7 @@ func (s Server) PingTcp(other Server) error {
 	if err != nil {
 		return err
 	}
-	s.UpdateRoutingTable(other.Node)
+	s.updateRoutingTable(other.Node)
 	return nil
 }
 

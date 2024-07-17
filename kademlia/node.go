@@ -43,7 +43,7 @@ func (n Node) Xor(other Node) *big.Int {
 }
 
 func RandNumber() *big.Int {
-	limit := new(big.Int).Lsh(big.NewInt(1), 160)
+	limit := new(big.Int).Lsh(big.NewInt(1), Options.IdLength)
 	random, err := rand.Int(rand.Reader, limit)
 	if err != nil {
 		log.Fatal(err)
