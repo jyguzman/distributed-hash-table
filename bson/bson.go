@@ -215,10 +215,10 @@ func MarshalPair(p Pair) ([]byte, int32, error) {
 	return bufBytes, int32(len(bufBytes)), nil
 }
 
-func Unmarshal(data []byte, obj any) error {
+func Unmarshal(data []byte, obj any) (error, uint32) {
 	size := binary.LittleEndian.Uint32(data[:4])
 	if data[size-1] != byte(0x00) {
-		return fmt.Errorf("last byte must be null terminator 0x00, is 0x%02x", data[size-1])
+		return fmt.Errorf("last byte must be null terminator 0x00, is 0x%02x", data[size-1]), 0
 	}
 	i := uint32(4)
 	for i < size-1 {
@@ -230,40 +230,51 @@ func Unmarshal(data []byte, obj any) error {
 		}
 		field := string(data[fieldStart:i])
 		i++
+
 		var v any
 		var w any
-		var newIdx uint32
+		var skip uint32
 		var err error
-		if bsonType == Object {
+
+		if bsonType != Object {
+			//fmt.Println("is not object", field, i)
+			w, skip, err = unmarshalValue(data[i:], bsonType)
+			fmt.Println("not object type:", bsonType)
+		} else {
+			//fmt.Println("is object", field)
 			switch obj.(type) {
 			case *D:
 				thing := D{}
-				err = Unmarshal(data[i:], &thing)
+				err, skip = Unmarshal(data[i:], &thing)
 				pair := Pair{Key: field, Val: thing}
 				v = pair
 			case *M:
 				v = M{}
-				err = Unmarshal(data[i:], &v)
+				err, skip = Unmarshal(data[i:], v)
 			case M:
 				v = M{}
-				err = Unmarshal(data[i:], v)
+				err, skip = Unmarshal(data[i:], v)
 			}
 			if err != nil {
-				return err
+				return err, 0
 			}
-		} else {
-			w, newIdx, err = unmarshalValue(data, bsonType, i)
 		}
 		if err != nil {
-			return err
+			return err, 0
 		}
-		i = newIdx
+		i += skip
 		var z any
 		if v != nil {
 			z = v
 		} else {
 			z = w
 		}
+		//if bsonType == Object {
+		//	fmt.Println("(object) z:", z)
+		//} else {
+		//	fmt.Println("(not object) z:", z)
+		//}
+
 		if z != nil {
 			switch ot := obj.(type) {
 			case M:
@@ -278,48 +289,37 @@ func Unmarshal(data []byte, obj any) error {
 				}
 			}
 		}
-		if i == 0 {
-			break
-		}
 	}
-	return nil
+	return nil, i
 }
 
-func unmarshalValue(v []byte, vType Type, idx uint32) (any, uint32, error) {
-	// Add error handling (incorrect format for String, etc.)
+func unmarshalValue(v []byte, vType Type) (any, uint32, error) {
+	// Add error handling (incorrect format/length for String, etc.)
 	switch vType {
 	case String:
-		strLen := binary.LittleEndian.Uint32(v[idx : idx+4])
-		i := idx + 4
-		start := i
-		for i < strLen+start-1 {
-			i++
+		length := binary.LittleEndian.Uint32(v[:4])
+		end := length + 3
+		if v[end] != 0x00 {
+			return nil, 0, fmt.Errorf("strings must have null terminator, has 0x%02x", v[end])
 		}
-		i++
-		return string(v[start : i-1]), i, nil
+		return string(v[4:end]), end + 1, nil
 	case Int:
-		start := idx
-		idx += 4
-		return int32(binary.LittleEndian.Uint32(v[start:idx])), idx, nil
+		return int32(binary.LittleEndian.Uint32(v[:4])), 4, nil
 	case Long:
-		start := idx
-		idx += 8
-		return int64(binary.LittleEndian.Uint64(v[start:idx])), idx, nil
+		return int64(binary.LittleEndian.Uint64(v[:8])), 8, nil
 	case Double:
-		start := idx
-		idx += 8
 		var float float64
-		buf := bytes.NewReader(v[start:idx])
+		buf := bytes.NewReader(v[:8])
 		err := binary.Read(buf, binary.LittleEndian, &float)
 		if err != nil {
 			return nil, 0, err
 		}
-		return float, idx, nil
+		return float, 8, nil
 	case Bool:
-		if v[idx] == 0x00 {
-			return false, idx + 1, nil
+		if v[0] == 0x00 {
+			return false, 1, nil
 		}
-		return true, idx + 1, nil
+		return true, 1, nil
 	case BinData:
 		return nil, 0, nil
 	case Object:
@@ -327,7 +327,7 @@ func unmarshalValue(v []byte, vType Type, idx uint32) (any, uint32, error) {
 	case Array:
 		//return UnmarshalHelper(v, Array, idx)
 	case Null:
-		return nil, idx + 1, nil
+		return nil, 1, nil
 	}
 	return nil, 0, nil
 }

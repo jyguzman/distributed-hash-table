@@ -27,7 +27,7 @@ func (c Client) Call(args bson.M, reply any) error {
 		return err
 	}
 
-	err = bson.Unmarshal(buf[:n], reply)
+	err, _ = bson.Unmarshal(buf[:n], reply)
 	if err != nil {
 		return err
 	}

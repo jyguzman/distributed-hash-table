@@ -31,19 +31,36 @@ func main() {
 	//		},
 	//	},
 	//}
-	docD := bson.D{
-		{"hello", "world"},
-		{"there", bson.D{
-			{"inner", "world"},
-			{"inner_two", bson.D{
-				{"inner", "world_two"},
-			}},
+	//docD := bson.D{
+	//	{"hello", "world"},
+	//	{"there", bson.D{
+	//		{"inner", "world"},
+	//		{"inner_two", bson.D{
+	//			{"inner", "world_two"},
+	//		}},
+	//	}},
+	//}
+	mixed := bson.D{
+		{"first", "world_one"},
+		{"second", bson.M{
+			"inner_one": "world_two",
+			"inner_two": bson.D{
+				{"inner_three", "world_three"},
+				{"inner_four", bson.M{
+					"way_inner_int": int32(32),
+				}},
+			},
 		}},
 	}
 	//docT := bson.D{
 	//	{"hello", bson.D{
 	//		{"thing", "you"},
 	//	}},
+	//}
+	//docT := bson.M{
+	//	"hello": bson.M{
+	//		"thing": "you",
+	//	},
 	//}
 	//docE := bson.D{
 	//	{"hello", "world"},
@@ -57,14 +74,14 @@ func main() {
 	//		}},
 	//	}},
 	//}
-	bytes, err := bson.Marshal(docD)
+	bytes, err := bson.Marshal(mixed)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(bytes)
+	//fmt.Println(bytes)
 
-	m := bson.D{}
-	err = bson.Unmarshal(bytes, &m)
+	m := bson.M{}
+	err, _ = bson.Unmarshal(bytes, &m)
 	if err != nil {
 		panic(err)
 	}
