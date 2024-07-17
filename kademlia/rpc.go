@@ -27,7 +27,7 @@ func (s Server) SendPing(other Server) error {
 	}
 
 	node := FromTuple(bson.A{other.Node.Host, other.Node.Port, other.Node.ID})
-	s.UpdateRoutingTable(node)
+	s.updateRoutingTable(node)
 	fmt.Println("PONG", reply)
 	return nil
 }
@@ -81,9 +81,9 @@ func (s Server) Ping(callArgs bson.M, reply bson.M) error {
 	if !ok {
 		return fmt.Errorf("PONG: Invalid ID: %s", id)
 	}
-	node := FromTuple(bson.A{ID, host, port})
+	node := FromTuple(bson.A{host, port, ID})
 	fmt.Printf("PING %s\n", node)
-	s.UpdateRoutingTable(node)
+	s.updateRoutingTable(node)
 	reply["id"] = s.Node.ID
 	return nil
 }

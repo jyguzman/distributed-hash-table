@@ -23,6 +23,9 @@ func (c Client) Call(args bson.M, reply any) error {
 
 	buf := make([]byte, 1024)
 	n, _, err := c.conn.ReadFromUDP(buf)
+	if err != nil {
+		return err
+	}
 
 	err = bson.Unmarshal(buf[:n], reply)
 	if err != nil {
