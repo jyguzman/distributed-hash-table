@@ -12,7 +12,7 @@ type Server struct {
 	Node          Node
 	tcpRpcServer  *rpc.Server
 	bsonRpcServer *bsonrpc.Server
-	dataStore     map[string][]byte
+	dataStore     map[string]any
 	routingTable  *RoutingTable
 }
 
@@ -20,14 +20,24 @@ func NewServer(host string, port int) (Server, error) {
 	n := NewNode(host, port, nil)
 	s := Server{
 		Node:         n,
-		dataStore:    make(map[string][]byte),
-		routingTable: NewRoutingTable(n, 8),
+		dataStore:    make(map[string]any),
+		routingTable: NewRoutingTable(n, Options.BucketCapacity),
 	}
-	tcpRpcServer := rpc.NewServer()
-	err := tcpRpcServer.Register(&s)
-	if err != nil {
-		return Server{}, err
+	s.updateRoutingTable(s.Node)
+
+	var tcpRpcServer *rpc.Server
+	var bsonRpcServer *bsonrpc.Server
+
+	if Options.Protocol == "tcp" {
+		tcpRpcServer = rpc.NewServer()
+		err := tcpRpcServer.Register(&s)
+		if err != nil {
+			return Server{}, err
+		}
+		s.tcpRpcServer = tcpRpcServer
+		return s, nil
 	}
+
 	bsonRpcServer, err := bsonrpc.NewServer(host, port)
 	if err != nil {
 		return Server{}, err
@@ -37,8 +47,6 @@ func NewServer(host string, port int) (Server, error) {
 		return Server{}, err
 	}
 	s.bsonRpcServer = bsonRpcServer
-	s.tcpRpcServer = tcpRpcServer
-	s.UpdateRoutingTable(s.Node)
 	return s, nil
 }
 
@@ -60,7 +68,7 @@ func (s Server) Bootstrap(servers ...Server) {
 	}
 }
 
-func (s Server) UpdateRoutingTable(node Node) {
+func (s Server) updateRoutingTable(node Node) {
 	s.routingTable.Add(node)
 }
 

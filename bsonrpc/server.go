@@ -13,8 +13,8 @@ type Server struct {
 	host           string
 	port           int
 	conn           *net.UDPConn
-	ServiceMethods map[string]reflect.Method
-	Service        reflect.Value
+	serviceMethods map[string]reflect.Method
+	service        reflect.Value
 }
 
 func NewServer(host string, port int) (*Server, error) {
@@ -30,7 +30,7 @@ func NewServer(host string, port int) (*Server, error) {
 		host:           host,
 		port:           port,
 		conn:           conn,
-		ServiceMethods: make(map[string]reflect.Method),
+		serviceMethods: make(map[string]reflect.Method),
 	}, nil
 }
 
@@ -110,14 +110,15 @@ func (s *Server) Register(receiver any) error {
 	if t.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("receiver must be a struct")
 	}
-	s.Service = reflect.ValueOf(receiver)
+	s.service = reflect.ValueOf(receiver)
 	for i := 0; i < t.NumMethod(); i++ {
 		method := t.Method(i)
-		if isValidMethod(s.Service.Type(), method) {
-			s.ServiceMethods[method.Name] = method
+		_, exists := s.serviceMethods[method.Name]
+		if !exists && isValidMethod(s.service.Type(), method) {
+			s.serviceMethods[method.Name] = method
 		}
 	}
-	if len(s.ServiceMethods) == 0 {
+	if len(s.serviceMethods) == 0 {
 		log.Println("Warning: no methods were registered")
 	}
 	return nil
@@ -125,12 +126,12 @@ func (s *Server) Register(receiver any) error {
 
 func (s *Server) callMethod(args bson.M, reply bson.M) error {
 	methodName := args["q"].(string)
-	method, ok := s.ServiceMethods[methodName]
+	method, ok := s.serviceMethods[methodName]
 	if !ok {
 		return fmt.Errorf("no such method: " + methodName)
 	}
 
-	fnArgs := []reflect.Value{s.Service, reflect.ValueOf(args), reflect.ValueOf(reply)}
+	fnArgs := []reflect.Value{s.service, reflect.ValueOf(args), reflect.ValueOf(reply)}
 	errVal := method.Func.Call(fnArgs)[0].Interface()
 	if errVal != nil {
 		return errVal.(error)

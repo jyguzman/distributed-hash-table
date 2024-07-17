@@ -201,6 +201,9 @@ func MarshalPair(p Pair) ([]byte, int32, error) {
 	if valType == String {
 		err = binary.Write(buf, binary.LittleEndian, int32(len(valBytes)+1))
 	}
+	if valType == BinData {
+		err = binary.Write(buf, binary.LittleEndian, int32(len(valBytes)))
+	}
 	err = binary.Write(buf, binary.LittleEndian, valBytes)
 	if valType == String {
 		err = binary.Write(buf, binary.LittleEndian, byte(0x00))

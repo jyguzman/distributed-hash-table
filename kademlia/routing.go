@@ -57,9 +57,9 @@ func (rn *RTNode) Split(prefixes map[string]*KBucket) {
 		currId := ptr.Node.ID
 		bit := int(currId.Bit(currId.BitLen() - len(rn.Prefix) - 1))
 		if bit == 0 {
-			zeroBucket.Append(ptr.Node)
+			zeroBucket.Add(ptr.Node)
 		} else {
-			oneBucket.Append(ptr.Node)
+			oneBucket.Add(ptr.Node)
 		}
 		ptr = ptr.Next
 	}
@@ -78,7 +78,7 @@ func (rn *RTNode) isLeaf() bool {
 func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]*KBucket) {
 	if rn.isLeaf() {
 		if rn.Bucket.Size < rn.K {
-			rn.Bucket.Append(node)
+			rn.Bucket.Add(node)
 			return
 		}
 		rn.Split(prefixes)
@@ -88,26 +88,6 @@ func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]*KBucket) {
 		rn.Left.Add(currPos+1, node, prefixes)
 	} else {
 		rn.Right.Add(currPos+1, node, prefixes)
-	}
-}
-
-type Prefix struct {
-	Prefix string
-	Bucket *KBucket
-}
-type Prefixes []Prefix
-
-func (p *Prefixes) Insert(pair Prefix) {
-	lo, hi := 0, len(*p)
-
-	for lo < hi {
-		mid := (lo + hi) / 2
-		prefix := (*p)[mid].Prefix
-		if prefix < pair.Prefix {
-			hi = mid
-		} else {
-			lo = mid + 1
-		}
 	}
 }
 

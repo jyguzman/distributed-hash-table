@@ -9,14 +9,14 @@ type ListNode struct {
 }
 
 type KBucket struct {
-	K    int
-	Head *ListNode
-	Tail *ListNode
-	Size int
+	Capacity int
+	Head     *ListNode
+	Tail     *ListNode
+	Size     int
 }
 
 func NewKBucket(k int) *KBucket {
-	return &KBucket{K: k}
+	return &KBucket{Capacity: k}
 }
 
 func (kb *KBucket) String() string {
@@ -36,7 +36,7 @@ func (kb *KBucket) String() string {
 	return res
 }
 
-func (kb *KBucket) Append(n Node) {
+func (kb *KBucket) Add(n Node) {
 	kb.Size += 1
 	if kb.Head == nil {
 		kb.Head = &ListNode{Node: n}
