@@ -141,7 +141,7 @@ func MarshalValue(val any) (Type, []byte, error) {
 			return -1, nil, marshalErr
 		}
 		err = binary.Write(buf, binary.LittleEndian, objBytes)
-	case M:
+	case M, *M:
 		bsonType = Object
 		mapBytes, marshalErr := Marshal(vt)
 		if marshalErr != nil {
@@ -241,25 +241,27 @@ func Unmarshal(data []byte, obj any) (uint32, error) {
 			err   error
 		)
 
-		if bsonType != Object {
-			value, skip, err = unmarshalValue(data[i:], bsonType)
-		} else {
+		if bsonType == Object || bsonType == Array {
 			switch obj.(type) {
-			case *D:
-				thing := D{}
-				skip, err = Unmarshal(data[i:], &thing)
-				pair := Pair{Key: field, Val: thing}
-				value = pair
+			case *D, A:
+				inner := D{}
+				skip, err = Unmarshal(data[i:], &inner)
+				if err != nil {
+					return 0, err
+				}
+				value = Pair{Key: field, Val: inner}
 			case M, *M:
 				value = M{}
 				skip, err = Unmarshal(data[i:], value)
+				if err != nil {
+					return 0, err
+				}
 			}
+		} else {
+			value, skip, err = unmarshalValue(data[i:], bsonType)
 			if err != nil {
 				return 0, err
 			}
-		}
-		if err != nil {
-			return 0, err
 		}
 		i += skip
 		switch ot := obj.(type) {
@@ -274,6 +276,9 @@ func Unmarshal(data []byte, obj any) (uint32, error) {
 			default:
 				*ot = append(*ot, Pair{Key: field, Val: value})
 			}
+		}
+		if data[i] == 0x00 {
+			i++
 		}
 	}
 	return i, nil
@@ -308,18 +313,6 @@ func unmarshalValue(v []byte, vType Type) (any, uint32, error) {
 		return true, 1, nil
 	case BinData:
 		return nil, 0, nil
-	case Object:
-		//length := binary.LittleEndian.Uint32(v[:4])
-		//var obj any
-		//obj = D{}
-		//err, skip := Unmarshal(v[:length+1], &obj)
-		//if err != nil {
-		//	return nil, 0, err
-		//}
-		//return obj, length, nil
-		//return Unmarshal(v[idx:], Object, idx)
-	case Array:
-		//return UnmarshalHelper(v, Array, idx)
 	case Null:
 		return nil, 1, nil
 	}
