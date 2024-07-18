@@ -65,7 +65,7 @@ func (s *Server) readRequest() ([]byte, *net.UDPAddr, error) {
 
 func (s *Server) unmarshalRequest(req []byte) (bson.M, error) {
 	args := bson.M{}
-	err, _ := bson.Unmarshal(req, args)
+	_, err := bson.Unmarshal(req, args)
 	if err != nil {
 		return nil, err
 	}

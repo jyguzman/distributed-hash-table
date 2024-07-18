@@ -215,10 +215,10 @@ func MarshalPair(p Pair) ([]byte, int32, error) {
 	return bufBytes, int32(len(bufBytes)), nil
 }
 
-func Unmarshal(data []byte, obj any) (error, uint32) {
+func Unmarshal(data []byte, obj any) (uint32, error) {
 	size := binary.LittleEndian.Uint32(data[:4])
 	if data[size-1] != byte(0x00) {
-		return fmt.Errorf("last byte must be null terminator 0x00, is 0x%02x", data[size-1]), 0
+		return 0, fmt.Errorf("last byte must be null terminator 0x00, is 0x%02x", data[size-1])
 	}
 	i := uint32(4)
 	for i < size-1 {
@@ -231,66 +231,52 @@ func Unmarshal(data []byte, obj any) (error, uint32) {
 		field := string(data[fieldStart:i])
 		i++
 
-		var v any
-		var w any
-		var skip uint32
-		var err error
+		if i > size-1 {
+			break
+		}
+
+		var (
+			value any
+			skip  uint32
+			err   error
+		)
 
 		if bsonType != Object {
-			//fmt.Println("is not object", field, i)
-			w, skip, err = unmarshalValue(data[i:], bsonType)
-			fmt.Println("not object type:", bsonType)
+			value, skip, err = unmarshalValue(data[i:], bsonType)
 		} else {
-			//fmt.Println("is object", field)
 			switch obj.(type) {
 			case *D:
 				thing := D{}
-				err, skip = Unmarshal(data[i:], &thing)
+				skip, err = Unmarshal(data[i:], &thing)
 				pair := Pair{Key: field, Val: thing}
-				v = pair
-			case *M:
-				v = M{}
-				err, skip = Unmarshal(data[i:], v)
-			case M:
-				v = M{}
-				err, skip = Unmarshal(data[i:], v)
+				value = pair
+			case M, *M:
+				value = M{}
+				skip, err = Unmarshal(data[i:], value)
 			}
 			if err != nil {
-				return err, 0
+				return 0, err
 			}
 		}
 		if err != nil {
-			return err, 0
+			return 0, err
 		}
 		i += skip
-		var z any
-		if v != nil {
-			z = v
-		} else {
-			z = w
-		}
-		//if bsonType == Object {
-		//	fmt.Println("(object) z:", z)
-		//} else {
-		//	fmt.Println("(not object) z:", z)
-		//}
-
-		if z != nil {
-			switch ot := obj.(type) {
-			case M:
-				ot[field] = z
-			case *M:
-				(*ot)[field] = z
-			case *D:
-				if v != nil {
-					*ot = append(*ot, v.(Pair))
-				} else {
-					*ot = append(*ot, Pair{Key: field, Val: z})
-				}
+		switch ot := obj.(type) {
+		case M:
+			ot[field] = value
+		case *M:
+			(*ot)[field] = value
+		case *D:
+			switch value.(type) {
+			case Pair:
+				*ot = append(*ot, value.(Pair))
+			default:
+				*ot = append(*ot, Pair{Key: field, Val: value})
 			}
 		}
 	}
-	return nil, i
+	return i, nil
 }
 
 func unmarshalValue(v []byte, vType Type) (any, uint32, error) {
@@ -323,6 +309,14 @@ func unmarshalValue(v []byte, vType Type) (any, uint32, error) {
 	case BinData:
 		return nil, 0, nil
 	case Object:
+		//length := binary.LittleEndian.Uint32(v[:4])
+		//var obj any
+		//obj = D{}
+		//err, skip := Unmarshal(v[:length+1], &obj)
+		//if err != nil {
+		//	return nil, 0, err
+		//}
+		//return obj, length, nil
 		//return Unmarshal(v[idx:], Object, idx)
 	case Array:
 		//return UnmarshalHelper(v, Array, idx)
