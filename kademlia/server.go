@@ -34,6 +34,10 @@ func NewServer(host string, port int) (Server, error) {
 	return s, nil
 }
 
+func (s Server) RoutingTable() *RoutingTable {
+	return s.routingTable
+}
+
 func (s Server) Listen() {
 	go s.rpcServer.Listen()
 }

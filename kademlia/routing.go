@@ -21,7 +21,7 @@ func NewRTNode(k int) *RTNode {
 		Left:   nil,
 		Right:  nil,
 		K:      k,
-		Prefix: "",
+		Prefix: "*",
 	}
 }
 
@@ -104,23 +104,22 @@ func (rt *RoutingTable) String() string {
 }
 
 func NewRoutingTable(owner Node, k int) *RoutingTable {
-	return &RoutingTable{
+	rt := &RoutingTable{
 		Owner:          owner,
 		K:              k,
 		Root:           NewRTNode(k),
 		BucketPrefixes: make(map[string]*KBucket),
 	}
+	rt.BucketPrefixes["*"] = rt.Root.Bucket
+	return rt
 }
 
 func (rt *RoutingTable) Add(node Node) {
-	rt.Size += 1
 	rt.Root.Add(1, node, rt.BucketPrefixes)
-	if rt.Size == 1 {
-		rt.BucketPrefixes[""] = rt.Root.Bucket
-	}
+	rt.Size += 1
 }
 
-func (rt *RoutingTable) GetNearest(key *big.Int) []bson.A {
+func (rt *RoutingTable) GetNearest(key *big.Int) bson.A {
 	nodeHeap := &NodeHeap{Key: key}
 	heap.Init(nodeHeap)
 	for _, bucket := range rt.BucketPrefixes {
@@ -132,9 +131,9 @@ func (rt *RoutingTable) GetNearest(key *big.Int) []bson.A {
 			ptr = ptr.Next
 		}
 	}
-	nodes := make([]bson.A, rt.K)
-	for i := 0; i < rt.K; i++ {
-		nodes[i] = heap.Pop(nodeHeap).(Node).Tuple()
+	nodes := bson.A{}
+	for i := 0; len(nodeHeap.Nodes) > 0 && i < rt.K; i++ {
+		nodes = append(nodes, heap.Pop(nodeHeap).(Node).Tuple())
 	}
 	return nodes
 }

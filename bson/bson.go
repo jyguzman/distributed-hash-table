@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"reflect"
 	"strconv"
 )
 
@@ -60,7 +61,17 @@ func Marshal(v any) ([]byte, error) {
 		err = binary.Write(buf, binary.LittleEndian, size)
 		err = binary.Write(buf, binary.LittleEndian, aBytes)
 	default:
-		return nil, fmt.Errorf("value must be object (ordered/unordered) or array, not of type %T", t)
+		if reflect.TypeOf(v).Kind() == reflect.Struct {
+			sBytes, size, marshalErr := marshalStruct(v)
+			if marshalErr != nil {
+				return nil, marshalErr
+			}
+			size += 4 + 1
+			err = binary.Write(buf, binary.LittleEndian, size)
+			err = binary.Write(buf, binary.LittleEndian, sBytes)
+		} else {
+			return nil, fmt.Errorf("value must be object (ordered/unordered) or array, not of type %T", t)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -122,6 +133,31 @@ func marshalArray(array A) ([]byte, int32, error) {
 	return buf.Bytes(), size, nil
 }
 
+func marshalStruct(s any) ([]byte, int32, error) {
+	rValue := reflect.ValueOf(s)
+	rType := rValue.Type()
+	if rValue.Kind() != reflect.Struct {
+		return nil, 0, fmt.Errorf("value must be a struct")
+	}
+	buf := new(bytes.Buffer)
+	var size int32
+	for i := 0; i < rType.NumField(); i++ {
+		fieldName := rType.Field(i).Name
+		fieldValue := rValue.Field(i).Interface()
+		pairBytes, pairSize, err := MarshalPair(Pair{Key: fieldName, Val: fieldValue})
+		if err != nil {
+			return nil, 0, err
+		}
+		size += pairSize
+		_, err = buf.Write(pairBytes)
+	}
+	err := binary.Write(buf, binary.LittleEndian, byte(0x00))
+	if err != nil {
+		return nil, -1, err
+	}
+	return buf.Bytes(), size, nil
+}
+
 func MarshalValue(val any) (Type, []byte, error) {
 	buf := new(bytes.Buffer)
 	var bsonType Type
@@ -148,7 +184,7 @@ func MarshalValue(val any) (Type, []byte, error) {
 			return -1, nil, marshalErr
 		}
 		err = binary.Write(buf, binary.LittleEndian, mapBytes)
-	case A:
+	case A, []A:
 		bsonType = Array
 		arrBytes, marshalErr := Marshal(vt)
 		if marshalErr != nil {
@@ -181,7 +217,16 @@ func MarshalValue(val any) (Type, []byte, error) {
 		bsonType = Bool
 		err = binary.Write(buf, binary.LittleEndian, vt)
 	default:
-		return -1, nil, fmt.Errorf("unsupported type: %T", val)
+		if reflect.TypeOf(val).Kind() == reflect.Struct {
+			bsonType = Object
+			sBytes, marshalErr := Marshal(vt)
+			if marshalErr != nil {
+				return -1, nil, marshalErr
+			}
+			err = binary.Write(buf, binary.LittleEndian, sBytes)
+		} else {
+			return -1, nil, fmt.Errorf("unsupported type: %T", val)
+		}
 	}
 	if err != nil {
 		return -1, nil, fmt.Errorf("error serializing value: %v", val)
@@ -256,6 +301,21 @@ func Unmarshal(data []byte, obj any) (uint32, error) {
 				if err != nil {
 					return 0, err
 				}
+			default:
+				rValue := reflect.ValueOf(obj)
+				sVal := reflect.Indirect(rValue)
+				rType := sVal.Type()
+				if rType.Kind() == reflect.Struct {
+					sField := sVal.FieldByName(field)
+					reflect.StructOf()
+					skip, err = Unmarshal(data[i:], &value)
+					if err != nil {
+						return 0, err
+					}
+					sField.Set(reflect.ValueOf(value))
+				} else {
+					return 0, fmt.Errorf("not an object or array type: %T", obj)
+				}
 			}
 		} else {
 			value, skip, err = unmarshalValue(data[i:], bsonType)
@@ -276,6 +336,13 @@ func Unmarshal(data []byte, obj any) (uint32, error) {
 			default:
 				*ot = append(*ot, Pair{Key: field, Val: value})
 			}
+		default:
+			rValue := reflect.ValueOf(obj)
+			sVal := reflect.Indirect(rValue)
+			rType := sVal.Type()
+			if rType.Kind() == reflect.Struct {
+				setStructVal(sVal.FieldByName(field), bsonType, value)
+			}
 		}
 		if data[i] == 0x00 {
 			i++
@@ -285,7 +352,6 @@ func Unmarshal(data []byte, obj any) (uint32, error) {
 }
 
 func unmarshalValue(v []byte, vType Type) (any, uint32, error) {
-	// Add error handling (incorrect format/length for String, etc.)
 	switch vType {
 	case String:
 		length := binary.LittleEndian.Uint32(v[:4])
@@ -312,9 +378,30 @@ func unmarshalValue(v []byte, vType Type) (any, uint32, error) {
 		}
 		return true, 1, nil
 	case BinData:
-		return nil, 0, nil
+		length := binary.LittleEndian.Uint32(v[:4])
+		end := length + 4
+		return v[4:end], end, nil
 	case Null:
 		return nil, 1, nil
 	}
 	return nil, 0, nil
+}
+
+func setStructVal(structField reflect.Value, bType Type, data any) {
+	switch bType {
+	case String:
+		structField.SetString(data.(string))
+	case Int:
+		structField.Set(reflect.ValueOf(data))
+	case BinData:
+		structField.SetBytes(data.([]byte))
+	case Long:
+		structField.SetInt(data.(int64))
+	case Double:
+		structField.SetFloat(data.(float64))
+	case Bool:
+		structField.SetBool(data.(bool))
+	case Null:
+		structField.Set(reflect.Value{})
+	}
 }

@@ -8,7 +8,7 @@ type KadOptions struct {
 }
 
 var Options = KadOptions{
-	BucketCapacity: 8,
+	BucketCapacity: 3,
 	Alpha:          3,
 	NodeRefresh:    60 * 60,
 	NodeExpiration: 60 * 60,

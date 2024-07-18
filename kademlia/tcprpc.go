@@ -18,7 +18,7 @@ type Reply struct {
 	Recipient Node
 	Message   string
 	Value     []byte
-	Nodes     []bson.A
+	Nodes     bson.A
 	Code      int
 }
 
@@ -84,7 +84,7 @@ func (s Server) StoreTcp(node Node, key string, data []byte) error {
 	return nil
 }
 
-func (s Server) FindNodesTcp(other Server, key string) ([]bson.A, error) {
+func (s Server) FindNodesTcp(other Server, key string) (bson.A, error) {
 	client, err := s.ContactTcp(other)
 	if err != nil {
 		return nil, err

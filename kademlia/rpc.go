@@ -32,16 +32,18 @@ func (s Server) SendPing(other Server) error {
 	return nil
 }
 
-func (s Server) SendFindNode(key string, other Server) ([]bson.A, error) {
+func (s Server) SendFindNode(key *big.Int, other Server) (bson.M, error) {
 	client, err := s.Contact(other)
 	if err != nil {
 		return nil, err
 	}
 
 	args := bson.M{
-		"q":   "FindNode",
-		"id":  s.Node.ID,
-		"key": HashToBigInt(GetHash(key)),
+		"q":    "FindNode",
+		"id":   s.Node.ID,
+		"host": s.Node.Host,
+		"port": int32(s.Node.Port),
+		"key":  key,
 	}
 
 	reply := bson.M{}
@@ -50,7 +52,7 @@ func (s Server) SendFindNode(key string, other Server) ([]bson.A, error) {
 		return nil, err
 	}
 
-	return reply["nodes"].([]bson.A), nil
+	return reply["nodes"].(bson.M), nil
 }
 
 func (s Server) SendStore(key string, val any, other Server) error {
@@ -89,8 +91,12 @@ func (s Server) Ping(callArgs bson.M, reply bson.M) error {
 }
 
 func (s Server) FindNode(callArgs bson.M, reply bson.M) error {
-	key := callArgs["key"].(*big.Int)
-	reply["nodes"] = s.routingTable.GetNearest(key)
+	key := callArgs["key"].(string)
+	intKey, ok := new(big.Int).SetString(key, 16)
+	if !ok {
+		return fmt.Errorf("invalid key string: %s", key)
+	}
+	reply["nodes"] = s.routingTable.GetNearest(intKey)
 	return nil
 }
 

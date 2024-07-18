@@ -20,36 +20,44 @@ func initServers(n int) ([]kademlia.Server, error) {
 }
 
 func main() {
-	nodes := make([]kademlia.Node, 8)
-	for i := 0; i < len(nodes); i++ {
-		nodes[i] = kademlia.NewNode("localhost", 8000+i+1, nil)
-	}
-	closestMsg := bson.M{
-		"id":   nodes[0].ID,
-		"host": "localhost",
-		"port": int32(nodes[0].Port),
-		"nodes": bson.A{
-			nodes[1].Tuple(),
-			nodes[2].Tuple(),
-			nodes[3].Tuple(),
-		},
-	}
-	bytes, err := bson.Marshal(closestMsg)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(bytes)
-
-	m := bson.M{}
-	_, err = bson.Unmarshal(bytes, &m)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(m)
-	//servers, err := initServers(2)
-	//err = servers[0].SendPing(servers[1])
+	//servers, err := initServers(8)
 	//if err != nil {
 	//	panic(err)
 	//}
-	//servers[0].DisplayRoutingTable()
+	//for i := 1; i < len(servers); i++ {
+	//	err = servers[0].SendPing(servers[i])
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//}
+	//nodes, err := servers[1].SendFindNode(servers[1].Node.ID, servers[0])
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println(nodes)
+	type Inner struct {
+		Three float64
+	}
+	type Thing struct {
+		One   int32
+		Two   string
+		Three Inner
+	}
+
+	thing := Thing{
+		One:   50,
+		Two:   "jdlsk",
+		Three: Inner{3.0},
+	}
+	bytes, err := bson.Marshal(thing)
+	if err != nil {
+		panic(err)
+	}
+
+	var newThing Thing
+	_, err = bson.Unmarshal(bytes, &newThing)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(newThing)
 }
