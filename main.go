@@ -20,81 +20,21 @@ func initServers(n int) ([]kademlia.Server, error) {
 }
 
 func main() {
-	//id := kademlia.HashToBigInt(kademlia.GetHash("localhost:8000"))
-	//fmt.Println(id.Text(16))
-	//doc := bson.M{
-	//	"hello": "world",
-	//	"there": bson.M{
-	//		"inner": "world",
-	//		"inner_two": bson.M{
-	//			"inner": "world_two",
-	//		},
-	//	},
-	//}
-	//docD := bson.D{
-	//	{"hello", "world"},
-	//	{"there", bson.D{
-	//		{"inner", "world"},
-	//		{"inner_two", bson.D{
-	//			{"inner", "world_two"},
-	//		}},
-	//	}},
-	//}
-	//mixed := bson.M{
-	//	"first": "world_one",
-	//	"second": bson.M{
-	//		"inner_one": "world_two",
-	//		"inner_two": bson.M{
-	//			"inner_three": "world_three",
-	//			"inner_four": bson.M{
-	//				"way_inner_int": int32(32),
-	//			},
-	//		},
-	//	},
-	//}
-	//docT := bson.D{
-	//	{"hello", bson.D{
-	//		{"thing", "you"},
-	//		{"inner_thing", bson.D{
-	//			{"really_inner", "then_this"},
-	//		}},
-	//	}},
-	//}
-	//docT := bson.M{
-	//	"hello": bson.M{
-	//		"thing": "you",
-	//	},
-	//}
-	//docE := bson.D{
-	//	{"hello", "world"},
-	//	{"there", bson.D{
-	//		{"inner", "world"},
-	//		{"inner_two", bson.D{
-	//			{"inner", "world_two"},
-	//			{"inner_three", bson.D{
-	//				{"inner", "world_two"},
-	//			}},
-	//		}},
-	//	}},
-	//}
-	a := bson.A{
-		"the thing", bson.D{
-			{"hello", "world"},
-		}, bson.A{
-			100.7, bson.M{
-				"inner": "things",
-				"oh_boy": bson.D{
-					{"what's", "this?"},
-					{"yes it is", bson.A{
-						"bioshock", 5000.89, -78, bson.D{
-							{"best", "true"},
-						},
-					}},
-				},
-			},
+	nodes := make([]kademlia.Node, 8)
+	for i := 0; i < len(nodes); i++ {
+		nodes[i] = kademlia.NewNode("localhost", 8000+i+1, nil)
+	}
+	closestMsg := bson.M{
+		"id":   nodes[0].ID,
+		"host": "localhost",
+		"port": int32(8000),
+		"nodes": bson.A{
+			nodes[1].Tuple(),
+			nodes[2].Tuple(),
+			nodes[3].Tuple(),
 		},
 	}
-	bytes, err := bson.Marshal(a)
+	bytes, err := bson.Marshal(closestMsg)
 	if err != nil {
 		panic(err)
 	}
@@ -112,16 +52,4 @@ func main() {
 	//	panic(err)
 	//}
 	//servers[0].DisplayRoutingTable()
-	//for i := 1; i < len(servers); i++ {
-	//	err := servers[0].Ping(servers[i])
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//}
-	//fmt.Println("Root:")
-	//fmt.Println(servers[0].RoutingTable.String())
-	//fmt.Println()
-	//kNearest := servers[0].RoutingTable.GetNearest(servers[6].Node.ID)
-	//fmt.Println("K nearest:")
-	//fmt.Println(kNearest)
 }
