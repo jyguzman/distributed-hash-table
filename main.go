@@ -27,7 +27,7 @@ func main() {
 	closestMsg := bson.M{
 		"id":   nodes[0].ID,
 		"host": "localhost",
-		"port": int32(8000),
+		"port": int32(nodes[0].Port),
 		"nodes": bson.A{
 			nodes[1].Tuple(),
 			nodes[2].Tuple(),
