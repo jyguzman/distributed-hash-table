@@ -2,7 +2,6 @@ package kademlia
 
 import (
 	"container/heap"
-	"go-dht/bson"
 	"math/big"
 	"strings"
 )
@@ -119,7 +118,7 @@ func (rt *RoutingTable) Add(node Node) {
 	rt.Size += 1
 }
 
-func (rt *RoutingTable) GetNearest(key *big.Int) bson.A {
+func (rt *RoutingTable) GetNearest(key *big.Int) []Contact {
 	nodeHeap := &NodeHeap{Key: key}
 	heap.Init(nodeHeap)
 	for _, bucket := range rt.BucketPrefixes {
@@ -131,9 +130,9 @@ func (rt *RoutingTable) GetNearest(key *big.Int) bson.A {
 			ptr = ptr.Next
 		}
 	}
-	nodes := bson.A{}
+	var contacts []Contact
 	for i := 0; len(nodeHeap.Nodes) > 0 && i < rt.K; i++ {
-		nodes = append(nodes, heap.Pop(nodeHeap).(Node).Tuple())
+		contacts = append(contacts, heap.Pop(nodeHeap).(Node).ToTriple())
 	}
-	return nodes
+	return contacts
 }

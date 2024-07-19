@@ -17,12 +17,27 @@ type Node struct {
 	Port int
 }
 
+type Contact struct {
+	Id   string
+	Host string
+	Port int
+}
+
 func NewNode(host string, port int, id *big.Int) Node {
 	if id == nil {
 		addressHash := GetHash(host + ":" + strconv.Itoa(port))
 		id = HashToBigInt(addressHash)
 	}
 	return Node{Host: host, Port: port, ID: id}
+}
+
+func (n Node) ToTriple() Contact {
+	return Contact{Id: n.ID.String(), Host: n.Host, Port: n.Port}
+}
+
+func FromContact(contact Contact) Node {
+	id, _ := new(big.Int).SetString(contact.Id, 16)
+	return Node{ID: id, Host: contact.Host, Port: contact.Port}
 }
 
 func FromTuple(tuple bson.A) Node {

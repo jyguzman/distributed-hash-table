@@ -34,30 +34,33 @@ func main() {
 	//if err != nil {
 	//	panic(err)
 	//}
-	//fmt.Println(nodes)
-	type Inner struct {
-		Three float64
-	}
-	type Thing struct {
-		One   int32
-		Two   string
-		Three Inner
-	}
 
-	thing := Thing{
-		One:   50,
-		Two:   "jdlsk",
-		Three: Inner{3.0},
-	}
-	bytes, err := bson.Marshal(thing)
+	node := kademlia.NewNode("localhost", 8000, nil)
+	nodeBytes, err := bson.Marshal(node)
 	if err != nil {
 		panic(err)
 	}
+	type Result struct {
+		Nodes bson.A
+	}
 
-	var newThing Thing
-	_, err = bson.Unmarshal(bytes, &newThing)
+	var newNode kademlia.Node
+	_, err = bson.Unmarshal(nodeBytes, &newNode)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(newThing)
+	fmt.Println("node res:", newNode)
+	//bytesTwo, err := bson.Marshal(thingMap)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println(bytes)
+	//fmt.Println(bytesTwo, slices.Equal(bytes, bytesTwo))
+	//var newFlat First
+	//_, err = bson.Unmarshal(bytes, &newFlat)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("finished:", newFlat)
+
 }

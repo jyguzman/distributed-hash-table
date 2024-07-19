@@ -3,6 +3,7 @@ package bson
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"reflect"
@@ -261,6 +262,11 @@ func MarshalPair(p Pair) ([]byte, int32, error) {
 }
 
 func Unmarshal(data []byte, obj any) (uint32, error) {
+	rValue := reflect.ValueOf(obj)
+	rType := rValue.Type()
+	if rType.Kind() == reflect.Ptr && rValue.Elem().Kind() == reflect.Struct {
+		return UnmarshalStruct(data, obj)
+	}
 	size := binary.LittleEndian.Uint32(data[:4])
 	if data[size-1] != byte(0x00) {
 		return 0, fmt.Errorf("last byte must be null terminator 0x00, is 0x%02x", data[size-1])
@@ -302,20 +308,7 @@ func Unmarshal(data []byte, obj any) (uint32, error) {
 					return 0, err
 				}
 			default:
-				rValue := reflect.ValueOf(obj)
-				sVal := reflect.Indirect(rValue)
-				rType := sVal.Type()
-				if rType.Kind() == reflect.Struct {
-					sField := sVal.FieldByName(field)
-					reflect.StructOf()
-					skip, err = Unmarshal(data[i:], &value)
-					if err != nil {
-						return 0, err
-					}
-					sField.Set(reflect.ValueOf(value))
-				} else {
-					return 0, fmt.Errorf("not an object or array type: %T", obj)
-				}
+				return 0, fmt.Errorf("not an object or array type: %T", obj)
 			}
 		} else {
 			value, skip, err = unmarshalValue(data[i:], bsonType)
@@ -336,17 +329,31 @@ func Unmarshal(data []byte, obj any) (uint32, error) {
 			default:
 				*ot = append(*ot, Pair{Key: field, Val: value})
 			}
-		default:
-			rValue := reflect.ValueOf(obj)
-			sVal := reflect.Indirect(rValue)
-			rType := sVal.Type()
-			if rType.Kind() == reflect.Struct {
-				setStructVal(sVal.FieldByName(field), bsonType, value)
-			}
 		}
 		if data[i] == 0x00 {
 			i++
 		}
+	}
+	return i, nil
+}
+
+func UnmarshalStruct(data []byte, obj any) (uint32, error) {
+	rValue := reflect.ValueOf(obj).Elem()
+	if rValue.Kind() != reflect.Struct {
+		return 0, fmt.Errorf("expected struct, got %T", obj)
+	}
+	m := M{}
+	i, err := Unmarshal(data, &m)
+	if err != nil {
+		return 0, err
+	}
+	mBytes, err := json.Marshal(m)
+	if err != nil {
+		return 0, err
+	}
+	err = json.Unmarshal(mBytes, obj)
+	if err != nil {
+		return 0, err
 	}
 	return i, nil
 }
@@ -385,23 +392,4 @@ func unmarshalValue(v []byte, vType Type) (any, uint32, error) {
 		return nil, 1, nil
 	}
 	return nil, 0, nil
-}
-
-func setStructVal(structField reflect.Value, bType Type, data any) {
-	switch bType {
-	case String:
-		structField.SetString(data.(string))
-	case Int:
-		structField.Set(reflect.ValueOf(data))
-	case BinData:
-		structField.SetBytes(data.([]byte))
-	case Long:
-		structField.SetInt(data.(int64))
-	case Double:
-		structField.SetFloat(data.(float64))
-	case Bool:
-		structField.SetBool(data.(bool))
-	case Null:
-		structField.Set(reflect.Value{})
-	}
 }
