@@ -3,7 +3,6 @@ package bsonrpc
 import (
 	"fmt"
 	"go-dht/bson"
-	"go-dht/kademlia"
 	"log"
 	"net"
 	"reflect"
@@ -16,16 +15,6 @@ type Server struct {
 	conn           *net.UDPConn
 	serviceMethods map[string]reflect.Method
 	service        reflect.Value
-}
-
-type Request struct {
-	Query  string
-	Sender kademlia.Contact
-}
-
-type Response struct {
-	Message  string
-	Contacts []kademlia.Contact
 }
 
 func NewServer(host string, port int) (*Server, error) {
@@ -84,7 +73,7 @@ func (s *Server) unmarshalRequest(req []byte) (bson.M, error) {
 	return args, nil
 }
 
-func (s *Server) sendResponse(request any, sender *net.UDPAddr) error {
+func (s *Server) sendResponse(request bson.M, sender *net.UDPAddr) error {
 	reply := bson.M{}
 	err := s.callMethod(request, reply)
 	if err != nil {
@@ -135,8 +124,7 @@ func (s *Server) Register(receiver any) error {
 	return nil
 }
 
-func (s *Server) callMethod(args any, reply any) error {
-
+func (s *Server) callMethod(args bson.M, reply bson.M) error {
 	methodName := args["q"].(string)
 	method, ok := s.serviceMethods[methodName]
 	if !ok {
@@ -151,34 +139,3 @@ func (s *Server) callMethod(args any, reply any) error {
 
 	return nil
 }
-
-//func (s *Server) callMethod(args bson.M, reply bson.M) error {
-//	methodName := args["q"].(string)
-//	method, ok := s.serviceMethods[methodName]
-//	if !ok {
-//		return fmt.Errorf("no such method: " + methodName)
-//	}
-//
-//	fnArgs := []reflect.Value{s.service, reflect.ValueOf(args), reflect.ValueOf(reply)}
-//	errVal := method.Func.Call(fnArgs)[0].Interface()
-//	if errVal != nil {
-//		return errVal.(error)
-//	}
-//
-//	return nil
-//}
-
-//func (s *Server) callMethod(methodName string, args any, reply any) error {
-//	method, ok := s.serviceMethods[methodName]
-//	if !ok {
-//		return fmt.Errorf("no such method: " + methodName)
-//	}
-//
-//	fnArgs := []reflect.Value{s.service, reflect.ValueOf(args), reflect.ValueOf(reply)}
-//	errVal := method.Func.Call(fnArgs)[0].Interface()
-//	if errVal != nil {
-//		return errVal.(error)
-//	}
-//
-//	return nil
-//}

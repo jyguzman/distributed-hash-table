@@ -7,11 +7,6 @@ import (
 	"math/big"
 )
 
-type Request struct {
-	Sender Contact
-}
-type Response struct{}
-
 func (s Server) SendPing(other Server) error {
 	client, err := s.Contact(other)
 	if err != nil {
