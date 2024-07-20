@@ -32,16 +32,13 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		xor := servers[0].Node.Xor(servers[i].Node)
-		text := xor.Text(2)
-		//bytes := xor.Bytes()
-		//new_ := new(big.Int).SetBytes(bytes)
-		//fmt.Println("new:", new_.Text(2))
-		fmt.Println(servers[0].Node.Port, "0 id:", servers[0].Id().Text(2))
+		//xor := servers[0].Node.Xor(servers[i].Node)
+		//text := xor.Text(2)
+		//fmt.Println(servers[0].Node.Port, "0 id:", servers[0].Id().Text(2))
 		fmt.Println(servers[i].Node.Port, "id  :", servers[i].Id().Text(2))
-		fmt.Println(servers[i].Node.Port, "xor :", text)
-
-		fmt.Println(xor.Bit(0), xor.Bit(1), xor.Bit(2), xor.Bit(3), len(text), text[0:5])
+		//fmt.Println(servers[i].Node.Port, "xor :", text)
+		//
+		//fmt.Println(xor.Bit(0), xor.Bit(1), xor.Bit(2), xor.Bit(3), len(text), text[0:5])
 		//for j := i + 1; j < len(servers); j++ {
 		//	err = servers[i].SendPing(servers[j])
 		//	if err != nil {

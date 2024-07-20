@@ -7,20 +7,22 @@ import (
 )
 
 type RTNode struct {
-	Bucket *KBucket
-	Left   *RTNode
-	Right  *RTNode
-	K      int
-	Prefix string
+	Bucket  *KBucket
+	Left    *RTNode
+	Right   *RTNode
+	K       int
+	Prefix  string
+	RtOwner Node
 }
 
-func NewRTNode(k int) *RTNode {
+func NewRTNode(owner Node) *RTNode {
 	return &RTNode{
-		Bucket: &KBucket{},
-		Left:   nil,
-		Right:  nil,
-		K:      k,
-		Prefix: "",
+		Bucket:  NewKBucket(""),
+		Left:    nil,
+		Right:   nil,
+		K:       Options.BucketCapacity,
+		Prefix:  "",
+		RtOwner: owner,
 	}
 }
 
@@ -50,9 +52,9 @@ func (rn *RTNode) String() string {
 }
 
 func (rn *RTNode) Split(prefixes map[string]*KBucket) {
-	zeroBucket, oneBucket := NewKBucket(rn.K), NewKBucket(rn.K)
-	ptr := rn.Bucket.Head
-	pLen := len(rn.Prefix)
+	prfx := rn.Prefix
+	zeroBucket, oneBucket := NewKBucket(prfx+"0"), NewKBucket(prfx+"1")
+	ptr, pLen := rn.Bucket.Head, len(prfx)
 	for ptr != nil {
 		currId := ptr.Node.ID
 		bit := currId.Bit(pLen)
@@ -64,9 +66,9 @@ func (rn *RTNode) Split(prefixes map[string]*KBucket) {
 		ptr = ptr.Next
 	}
 	rn.Bucket = nil
-	delete(prefixes, rn.Prefix)
-	rn.Left = &RTNode{Bucket: zeroBucket, K: rn.K, Prefix: rn.Prefix + "0"}
-	rn.Right = &RTNode{Bucket: oneBucket, K: rn.K, Prefix: rn.Prefix + "1"}
+	delete(prefixes, prfx)
+	rn.Left = &RTNode{RtOwner: rn.RtOwner, Bucket: zeroBucket, K: Options.BucketCapacity, Prefix: prfx + "0"}
+	rn.Right = &RTNode{RtOwner: rn.RtOwner, Bucket: oneBucket, K: Options.BucketCapacity, Prefix: prfx + "1"}
 	prefixes[rn.Left.Prefix] = rn.Left.Bucket
 	prefixes[rn.Right.Prefix] = rn.Right.Bucket
 }
@@ -81,13 +83,18 @@ func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]*KBucket) {
 			rn.Bucket.Add(node)
 			return
 		}
-		rn.Split(prefixes)
-	}
-	bit := node.ID.Bit(currPos)
-	if bit == 0 {
-		rn.Left.Add(currPos+1, node, prefixes)
+		prefix := rn.Bucket.Prefix
+		if prefix == rn.RtOwner.Prefix(len(prefix)) {
+			rn.Split(prefixes)
+			rn.Add(currPos, node, prefixes)
+		}
 	} else {
-		rn.Right.Add(currPos+1, node, prefixes)
+		bit := node.ID.Bit(currPos)
+		if bit == 0 {
+			rn.Left.Add(currPos+1, node, prefixes)
+		} else {
+			rn.Right.Add(currPos+1, node, prefixes)
+		}
 	}
 }
 
@@ -107,7 +114,7 @@ func NewRoutingTable(owner Node, k int) *RoutingTable {
 	rt := &RoutingTable{
 		Owner:          owner,
 		K:              k,
-		Root:           NewRTNode(k),
+		Root:           NewRTNode(owner),
 		BucketPrefixes: make(map[string]*KBucket),
 	}
 	rt.BucketPrefixes[""] = rt.Root.Bucket
@@ -115,6 +122,9 @@ func NewRoutingTable(owner Node, k int) *RoutingTable {
 }
 
 func (rt *RoutingTable) Add(node Node) {
+	//if rt.Owner.ID.Cmp(node.ID) == 0 {
+	//	fmt.Println("to insert:", node)
+	//}
 	rt.Root.Add(0, node, rt.BucketPrefixes)
 	rt.Size += 1
 }

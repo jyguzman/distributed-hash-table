@@ -57,6 +57,14 @@ func (n Node) Xor(other Node) *big.Int {
 	return new(big.Int).Xor(n.ID, other.ID)
 }
 
+func (n Node) Prefix(length int) string {
+	pre := ""
+	for i := 0; i < length; i++ {
+		pre += strconv.Itoa(int(n.ID.Bit(i)))
+	}
+	return pre
+}
+
 func RandNumber() *big.Int {
 	limit := new(big.Int).Lsh(big.NewInt(1), 160)
 	random, err := rand.Int(rand.Reader, limit)

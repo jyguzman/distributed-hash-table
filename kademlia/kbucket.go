@@ -9,14 +9,16 @@ type ListNode struct {
 }
 
 type KBucket struct {
+	Owner    Node
 	Capacity int
 	Head     *ListNode
 	Tail     *ListNode
 	Size     int
+	Prefix   string
 }
 
-func NewKBucket(k int) *KBucket {
-	return &KBucket{Capacity: k}
+func NewKBucket(prefix string) *KBucket {
+	return &KBucket{Capacity: Options.BucketCapacity, Prefix: prefix}
 }
 
 func (kb *KBucket) String() string {
