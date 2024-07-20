@@ -2,7 +2,6 @@ package kademlia
 
 import (
 	"fmt"
-	"go-dht/bson"
 	"math/big"
 	"net/rpc"
 )
@@ -18,7 +17,7 @@ type Reply struct {
 	Recipient Node
 	Message   string
 	Value     []byte
-	Nodes     bson.A
+	Nodes     []Node
 	Code      int
 }
 
@@ -84,7 +83,7 @@ func (s Server) StoreTcp(node Node, key string, data []byte) error {
 	return nil
 }
 
-func (s Server) FindNodesTcp(other Server, key string) (bson.A, error) {
+func (s Server) FindNodesTcp(other Server, key string) ([]Node, error) {
 	client, err := s.ContactTcp(other)
 	if err != nil {
 		return nil, err

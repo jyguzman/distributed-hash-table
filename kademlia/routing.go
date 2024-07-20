@@ -20,7 +20,7 @@ func NewRTNode(k int) *RTNode {
 		Left:   nil,
 		Right:  nil,
 		K:      k,
-		Prefix: "*",
+		Prefix: "",
 	}
 }
 
@@ -52,9 +52,10 @@ func (rn *RTNode) String() string {
 func (rn *RTNode) Split(prefixes map[string]*KBucket) {
 	zeroBucket, oneBucket := NewKBucket(rn.K), NewKBucket(rn.K)
 	ptr := rn.Bucket.Head
+	pLen := len(rn.Prefix)
 	for ptr != nil {
 		currId := ptr.Node.ID
-		bit := int(currId.Bit(currId.BitLen() - len(rn.Prefix) - 1))
+		bit := currId.Bit(pLen)
 		if bit == 0 {
 			zeroBucket.Add(ptr.Node)
 		} else {
@@ -82,7 +83,7 @@ func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]*KBucket) {
 		}
 		rn.Split(prefixes)
 	}
-	bit := int(node.ID.Bit(node.ID.BitLen() - currPos - 1))
+	bit := node.ID.Bit(currPos)
 	if bit == 0 {
 		rn.Left.Add(currPos+1, node, prefixes)
 	} else {
@@ -109,16 +110,16 @@ func NewRoutingTable(owner Node, k int) *RoutingTable {
 		Root:           NewRTNode(k),
 		BucketPrefixes: make(map[string]*KBucket),
 	}
-	rt.BucketPrefixes["*"] = rt.Root.Bucket
+	rt.BucketPrefixes[""] = rt.Root.Bucket
 	return rt
 }
 
 func (rt *RoutingTable) Add(node Node) {
-	rt.Root.Add(1, node, rt.BucketPrefixes)
+	rt.Root.Add(0, node, rt.BucketPrefixes)
 	rt.Size += 1
 }
 
-func (rt *RoutingTable) GetNearest(key *big.Int) []Contact {
+func (rt *RoutingTable) GetNearest(key *big.Int) []Node {
 	nodeHeap := &NodeHeap{Key: key}
 	heap.Init(nodeHeap)
 	for _, bucket := range rt.BucketPrefixes {
@@ -130,9 +131,9 @@ func (rt *RoutingTable) GetNearest(key *big.Int) []Contact {
 			ptr = ptr.Next
 		}
 	}
-	var contacts []Contact
+	var nodes []Node
 	for i := 0; len(nodeHeap.Nodes) > 0 && i < rt.K; i++ {
-		contacts = append(contacts, heap.Pop(nodeHeap).(Node).ToTriple())
+		nodes = append(nodes, heap.Pop(nodeHeap).(Node))
 	}
-	return contacts
+	return nodes
 }

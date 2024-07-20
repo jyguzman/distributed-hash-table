@@ -8,6 +8,9 @@ import (
 )
 
 func (s Server) SendPing(other Server) error {
+	if s.Id() == other.Id() {
+		return nil
+	}
 	client, err := s.Contact(other)
 	if err != nil {
 		return err
@@ -28,12 +31,12 @@ func (s Server) SendPing(other Server) error {
 
 	node := FromTuple(bson.A{other.Node.ID, other.Node.Host, other.Node.Port})
 	s.updateRoutingTable(node)
-	fmt.Println("PONG", reply)
+	//fmt.Println("PONG", reply)
 	return nil
 }
 
-func (s Server) SendFindNode(key *big.Int, other Server) (bson.M, error) {
-	client, err := s.Contact(other)
+func (s Server) SendFindNode(key *big.Int, other Node) (bson.M, error) {
+	client, err := s.ContactNode(other)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +87,7 @@ func (s Server) Ping(callArgs bson.M, reply bson.M) error {
 		return fmt.Errorf("PONG: Invalid ID: %s", id)
 	}
 	node := FromTuple(bson.A{ID, host, port})
-	fmt.Printf("PING %s\n", node)
+	//fmt.Printf("PING %s\n", node)
 	s.updateRoutingTable(node)
 	reply["id"] = s.Node.ID
 	return nil
@@ -96,7 +99,12 @@ func (s Server) FindNode(callArgs bson.M, reply bson.M) error {
 	if !ok {
 		return fmt.Errorf("invalid key string: %s", key)
 	}
-	reply["nodes"] = s.routingTable.GetNearest(intKey)
+	nodes := s.routingTable.GetNearest(intKey)
+	tuples := bson.A{}
+	for _, node := range nodes {
+		tuples = append(tuples, node)
+	}
+	reply["nodes"] = tuples
 	return nil
 }
 
@@ -115,6 +123,15 @@ func (s Server) Contact(other Server) (*bsonrpc.Client, error) {
 	client, err := bsonrpc.Dial(other.Node.Host, other.Node.Port)
 	if err != nil {
 		return nil, fmt.Errorf("error contacting (UDP) node at %s", other.Node)
+	}
+
+	return client, nil
+}
+
+func (s Server) ContactNode(node Node) (*bsonrpc.Client, error) {
+	client, err := bsonrpc.Dial(node.Host, node.Port)
+	if err != nil {
+		return nil, fmt.Errorf("error contacting (UDP) node at %s", node)
 	}
 
 	return client, nil

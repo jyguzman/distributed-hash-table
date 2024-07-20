@@ -3,6 +3,10 @@ package kademlia
 import (
 	"fmt"
 	"go-dht/bsonrpc"
+	"log"
+	"math"
+	"math/big"
+	"sync"
 )
 
 type Server struct {
@@ -10,6 +14,10 @@ type Server struct {
 	rpcServer    *bsonrpc.Server
 	dataStore    map[string]any
 	routingTable *RoutingTable
+}
+
+func (s Server) Id() *big.Int {
+	return s.Node.ID
 }
 
 func NewServer(host string, port int) (Server, error) {
@@ -48,6 +56,26 @@ func (s Server) Bootstrap(servers ...Server) {
 			fmt.Println(s.SendPing(server))
 		}
 	}
+}
+
+func (s Server) Lookup(key *big.Int) {
+	kClosestNodes := s.routingTable.GetNearest(key)
+	alpha, numClose := Options.Alpha, len(kClosestNodes)
+	limit := int(math.Min(float64(alpha), float64(numClose)))
+
+	wg := sync.WaitGroup{}
+	wg.Add(limit)
+	for i := 0; i < limit; i++ {
+		go func() {
+			resp, err := s.SendFindNode(key, kClosestNodes[i])
+			if err != nil {
+				log.Println(err)
+			}
+			fmt.Println(resp["reply"])
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
 
 func (s Server) updateRoutingTable(node Node) {

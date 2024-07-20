@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"go-dht/bson"
 	"go-dht/kademlia"
 )
 
@@ -20,47 +19,39 @@ func initServers(n int) ([]kademlia.Server, error) {
 }
 
 func main() {
-	//servers, err := initServers(8)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//for i := 1; i < len(servers); i++ {
-	//	err = servers[0].SendPing(servers[i])
-	//	if err != nil {
-	//		panic(err)
-	//	}
-	//}
-	//nodes, err := servers[1].SendFindNode(servers[1].Node.ID, servers[0])
-	//if err != nil {
-	//	panic(err)
-	//}
-
-	node := kademlia.NewNode("localhost", 8000, nil)
-	nodeBytes, err := bson.Marshal(node)
+	servers, err := initServers(10)
 	if err != nil {
 		panic(err)
 	}
-	type Result struct {
-		Nodes bson.A
-	}
+	//for _, server := range servers {
+	//	fmt.Println(server.Id())
+	//}
+	fmt.Println("      ", servers[0].Id().Text(2))
+	for i := 1; i < len(servers); i++ {
+		err = servers[0].SendPing(servers[i])
+		if err != nil {
+			panic(err)
+		}
+		xor := servers[0].Node.Xor(servers[i].Node)
+		text := xor.Text(2)
+		//bytes := xor.Bytes()
+		//new_ := new(big.Int).SetBytes(bytes)
+		//fmt.Println("new:", new_.Text(2))
+		fmt.Println(servers[0].Node.Port, "0 id:", servers[0].Id().Text(2))
+		fmt.Println(servers[i].Node.Port, "id  :", servers[i].Id().Text(2))
+		fmt.Println(servers[i].Node.Port, "xor :", text)
 
-	var newNode kademlia.Node
-	_, err = bson.Unmarshal(nodeBytes, &newNode)
-	if err != nil {
-		panic(err)
+		fmt.Println(xor.Bit(0), xor.Bit(1), xor.Bit(2), xor.Bit(3), len(text), text[0:5])
+		//for j := i + 1; j < len(servers); j++ {
+		//	err = servers[i].SendPing(servers[j])
+		//	if err != nil {
+		//		panic(err)
+		//	}
+		//}
 	}
-	fmt.Println("node res:", newNode)
-	//bytesTwo, err := bson.Marshal(thingMap)
+	servers[0].DisplayRoutingTable()
+	//servers[0].Lookup(servers[9].Id())
 	//if err != nil {
 	//	panic(err)
 	//}
-	//fmt.Println(bytes)
-	//fmt.Println(bytesTwo, slices.Equal(bytes, bytesTwo))
-	//var newFlat First
-	//_, err = bson.Unmarshal(bytes, &newFlat)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("finished:", newFlat)
-
 }
