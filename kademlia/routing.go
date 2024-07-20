@@ -77,11 +77,11 @@ func (rn *RTNode) isLeaf() bool {
 	return rn.Left == nil && rn.Right == nil && rn.Bucket != nil
 }
 
-func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]*KBucket) {
+func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]*KBucket) int {
 	if rn.isLeaf() {
 		if rn.Bucket.Size < rn.K {
 			rn.Bucket.Add(node)
-			return
+			return 1
 		}
 		prefix := rn.Bucket.Prefix
 		if prefix == rn.RtOwner.Prefix(len(prefix)) {
@@ -96,6 +96,7 @@ func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]*KBucket) {
 			rn.Right.Add(currPos+1, node, prefixes)
 		}
 	}
+	return 0
 }
 
 type RoutingTable struct {
@@ -122,11 +123,7 @@ func NewRoutingTable(owner Node, k int) *RoutingTable {
 }
 
 func (rt *RoutingTable) Add(node Node) {
-	//if rt.Owner.ID.Cmp(node.ID) == 0 {
-	//	fmt.Println("to insert:", node)
-	//}
-	rt.Root.Add(0, node, rt.BucketPrefixes)
-	rt.Size += 1
+	rt.Size += rt.Root.Add(0, node, rt.BucketPrefixes)
 }
 
 func (rt *RoutingTable) GetNearest(key *big.Int) []Node {
