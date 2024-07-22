@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"go-dht/bson"
 	"log"
@@ -14,25 +15,25 @@ import (
 type Node struct {
 	ID   *big.Int
 	Host string
-	Port int
+	Port int32
 }
 
 type Contact struct {
 	Id   string
 	Host string
-	Port int
+	Port int32
 }
 
-func NewNode(host string, port int, id *big.Int) Node {
+func NewNode(host string, port int32, id *big.Int) Node {
 	if id == nil {
-		addressHash := GetHash(host + ":" + strconv.Itoa(port))
+		addressHash := GetHash(host + ":" + strconv.Itoa(int(port)))
 		id = HashToBigInt(addressHash)
 	}
 	return Node{Host: host, Port: port, ID: id}
 }
 
-func (n Node) ToTriple() Contact {
-	return Contact{Id: n.ID.String(), Host: n.Host, Port: n.Port}
+func (n *Node) ToTriple() Contact {
+	return Contact{Host: n.Host, Port: n.Port, Id: n.ID.String()}
 }
 
 func FromContact(contact Contact) Node {
@@ -40,24 +41,78 @@ func FromContact(contact Contact) Node {
 	return Node{ID: id, Host: contact.Host, Port: contact.Port}
 }
 
-func FromTuple(tuple bson.A) Node {
-	id, host, port := tuple[0].(*big.Int), tuple[1].(string), tuple[2].(int)
+func NodeFromTuple(tuple bson.A) Node {
+	fmt.Println("tuple", tuple)
+	host, port, id := tuple[0].(string), tuple[1].(int32), tuple[2].(*big.Int)
 	return NewNode(host, port, id)
 }
 
-func (n Node) Tuple() bson.A {
-	return bson.A{n.ID, n.Host, n.Port}
+func NodeFromMap(arrMap bson.M) (Node, error) {
+	result := bson.A(make([]any, 3))
+	for i, _ := range arrMap {
+		idx, err := strconv.Atoi(i)
+		if err != nil {
+			return Node{}, err
+		}
+		result[idx] = arrMap[i]
+	}
+	idInt, ok := new(big.Int).SetString(result[2].(string), 16)
+	if !ok {
+		return Node{}, fmt.Errorf("invalid id %s", result[2])
+	}
+	result[2] = idInt
+	return NodeFromTuple(result), nil
 }
 
-func (n Node) String() string {
+func (n *Node) MarshalBSON() ([]byte, error) {
+	m := bson.M{
+		"id":   n.ID.Text(16),
+		"host": n.Host,
+		"port": n.Port,
+	}
+	data, err := m.MarshalBSON()
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+func (n *Node) UnmarshalBSON(data []byte) error {
+	m := bson.M{}
+	_, err := bson.Unmarshal(data, &m)
+	if err != nil {
+		return err
+	}
+	idStr := m["id"].(string)
+	id, ok := new(big.Int).SetString(idStr, 16)
+	if !ok {
+		return fmt.Errorf("invalid id %s", idStr)
+	}
+	m["id"] = id
+	mBytes, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(mBytes, n)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (n *Node) Tuple() bson.A {
+	return bson.A{n.Host, n.Port, n.ID}
+}
+
+func (n *Node) String() string {
 	return fmt.Sprintf("(%s:%d %s)", n.Host, n.Port, n.ID.Text(16))
 }
 
-func (n Node) Xor(other Node) *big.Int {
+func (n *Node) Xor(other Node) *big.Int {
 	return new(big.Int).Xor(n.ID, other.ID)
 }
 
-func (n Node) Prefix(length int) string {
+func (n *Node) Prefix(length int) string {
 	pre := ""
 	for i := 0; i < length; i++ {
 		pre += strconv.Itoa(int(n.ID.Bit(i)))

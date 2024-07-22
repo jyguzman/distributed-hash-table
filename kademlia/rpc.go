@@ -29,13 +29,13 @@ func (s Server) SendPing(other Server) error {
 		return err
 	}
 
-	node := FromTuple(bson.A{other.Node.ID, other.Node.Host, other.Node.Port})
+	node := NodeFromTuple(bson.A{other.Node.Host, other.Node.Port, other.Node.ID})
 	s.updateRoutingTable(node)
 	//fmt.Println("PONG", reply)
 	return nil
 }
 
-func (s Server) SendFindNode(key *big.Int, other Node) (bson.M, error) {
+func (s Server) SendFindNode(key *big.Int, other Node) ([]Node, error) {
 	client, err := s.ContactNode(other)
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func (s Server) SendFindNode(key *big.Int, other Node) (bson.M, error) {
 		"q":    "FindNode",
 		"id":   s.Node.ID,
 		"host": s.Node.Host,
-		"port": int32(s.Node.Port),
+		"port": s.Node.Port,
 		"key":  key,
 	}
 
@@ -55,7 +55,16 @@ func (s Server) SendFindNode(key *big.Int, other Node) (bson.M, error) {
 		return nil, err
 	}
 
-	return reply["nodes"].(bson.M), nil
+	tuples := reply["nodes"].(bson.M)
+	var nodes []Node
+	for _, tuple := range tuples {
+		node, err := NodeFromMap(tuple.(bson.M))
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, node)
+	}
+	return nodes, nil
 }
 
 func (s Server) SendStore(key string, val any, other Server) error {
@@ -81,12 +90,12 @@ func (s Server) SendStore(key string, val any, other Server) error {
 }
 
 func (s Server) Ping(callArgs bson.M, reply bson.M) error {
-	id, host, port := callArgs["id"].(string), callArgs["host"].(string), int(callArgs["port"].(int32))
+	id, host, port := callArgs["id"].(string), callArgs["host"].(string), callArgs["port"].(int32)
 	ID, ok := new(big.Int).SetString(id, 16)
 	if !ok {
 		return fmt.Errorf("PONG: Invalid ID: %s", id)
 	}
-	node := FromTuple(bson.A{ID, host, port})
+	node := NodeFromTuple(bson.A{host, port, ID})
 	//fmt.Printf("PING %s\n", node)
 	s.updateRoutingTable(node)
 	reply["id"] = s.Node.ID
@@ -101,8 +110,9 @@ func (s Server) FindNode(callArgs bson.M, reply bson.M) error {
 	}
 	nodes := s.routingTable.GetNearest(intKey)
 	tuples := bson.A{}
+	//fmt.Println(nodes)
 	for _, node := range nodes {
-		tuples = append(tuples, node)
+		tuples = append(tuples, node.Tuple())
 	}
 	reply["nodes"] = tuples
 	return nil
@@ -120,7 +130,7 @@ func (s Server) Store(callArgs bson.M, reply bson.M) error {
 }
 
 func (s Server) Contact(other Server) (*bsonrpc.Client, error) {
-	client, err := bsonrpc.Dial(other.Node.Host, other.Node.Port)
+	client, err := bsonrpc.Dial(other.Node.Host, int(other.Node.Port))
 	if err != nil {
 		return nil, fmt.Errorf("error contacting (UDP) node at %s", other.Node)
 	}
@@ -129,7 +139,7 @@ func (s Server) Contact(other Server) (*bsonrpc.Client, error) {
 }
 
 func (s Server) ContactNode(node Node) (*bsonrpc.Client, error) {
-	client, err := bsonrpc.Dial(node.Host, node.Port)
+	client, err := bsonrpc.Dial(node.Host, int(node.Port))
 	if err != nil {
 		return nil, fmt.Errorf("error contacting (UDP) node at %s", node)
 	}
