@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math/big"
 	"reflect"
 	"strconv"
 )
@@ -28,9 +27,9 @@ func (bd BSONDouble) MarshalBSONValue() (Type, []byte, error) {
 
 func (bs BSONString) MarshalBSONValue() (Type, []byte, error) {
 	buf, strBytes := new(bytes.Buffer), []byte(bs)
-	err := binary.Write(buf, binary.LittleEndian, int32(len(strBytes)))
+	err := binary.Write(buf, binary.LittleEndian, int32(len(strBytes)+1)) // +1 for null terminator
 	err = binary.Write(buf, binary.LittleEndian, strBytes)
-	err = binary.Write(buf, binary.LittleEndian, int32(0x00))
+	err = binary.Write(buf, binary.LittleEndian, byte(0x00))
 	if err != nil {
 		return 0, nil, err
 	}
@@ -38,7 +37,7 @@ func (bs BSONString) MarshalBSONValue() (Type, []byte, error) {
 }
 
 func (d D) MarshalBSONValue() (Type, []byte, error) {
-	size := int32(4) // starts at 5 because of the size value itself and null terminator
+	size := int32(5) // starts at 5 because of the size value itself and null terminator
 	var pairs []byte
 	for _, pair := range d {
 		pairBytes, err := pair.MarshalBSON()
@@ -59,7 +58,7 @@ func (d D) MarshalBSONValue() (Type, []byte, error) {
 }
 
 func (m M) MarshalBSONValue() (Type, []byte, error) {
-	size := int32(4) // starts at 5 because of the size value itself and null terminator
+	size := int32(5) // starts at 5 because of the size value itself and null terminator
 	var pairs []byte
 	for field, val := range m {
 		pairBytes, err := Pair{field, val}.MarshalBSON()
@@ -215,7 +214,7 @@ func MarshalValue(v any) (Type, []byte, error) {
 	}
 }
 
-func marshal(v any) ([]byte, error) {
+func Marshal(v any) ([]byte, error) {
 	switch o := v.(type) {
 	case Marshaler:
 		return o.MarshalBSON()
@@ -226,234 +225,278 @@ func marshal(v any) ([]byte, error) {
 		}
 		return data, nil
 	default:
-		return nil, fmt.Errorf("cannot marshal value of type %T", v)
+		t := reflect.TypeOf(v)
+		switch t.Kind() {
+		case reflect.Struct:
+			return marshalStruct(v)
+		case reflect.Slice:
+			val := reflect.ValueOf(v)
+			var a A
+			for i := 0; i < val.Len(); i++ {
+				a = append(a, val.Index(i).Interface())
+			}
+			return a.MarshalBSON()
+		case reflect.Ptr:
+			val := reflect.Indirect(reflect.ValueOf(v))
+			return Marshal(val.Interface())
+		default:
+			return nil, fmt.Errorf("cannot marshal value of type %T", v)
+		}
 	}
 }
 
-func Marshal(v any) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	var err error
-	switch t := v.(type) {
-	case D:
-		objBytes, size, marshalErr := marshalObj(t)
-		if marshalErr != nil {
-			return nil, marshalErr
-		}
-		size += 4 + 1 // the size of the size int32 value itself plus the null terminator
-		err = binary.Write(buf, binary.LittleEndian, size)
-		err = binary.Write(buf, binary.LittleEndian, objBytes)
-	case M:
-		mBytes, size, marshalErr := marshalMap(t)
-		if marshalErr != nil {
-			return nil, marshalErr
-		}
-		size += 4 + 1
-		err = binary.Write(buf, binary.LittleEndian, size)
-		err = binary.Write(buf, binary.LittleEndian, mBytes)
-	case A:
-		aBytes, size, marshalErr := marshalArray(t)
-		if marshalErr != nil {
-			return nil, marshalErr
-		}
-		size += 4 + 1
-		err = binary.Write(buf, binary.LittleEndian, size)
-		err = binary.Write(buf, binary.LittleEndian, aBytes)
-	default:
-		if reflect.TypeOf(v).Kind() == reflect.Struct {
-			sBytes, size, marshalErr := marshalStruct(v)
-			if marshalErr != nil {
-				return nil, marshalErr
-			}
-			size += 4 + 1
-			err = binary.Write(buf, binary.LittleEndian, size)
-			err = binary.Write(buf, binary.LittleEndian, sBytes)
-		} else {
-			return nil, fmt.Errorf("value must be object (ordered/unordered) or array, not of type %T", t)
-		}
+func marshalStruct(s any) ([]byte, error) {
+	rValue := reflect.ValueOf(s)
+	rType := rValue.Type()
+	if rValue.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("value must be a struct")
 	}
+	var size int32
+	var pairs []byte
+	for i := 0; i < rType.NumField(); i++ {
+		fieldName := rType.Field(i).Name
+		fieldValue := rValue.Field(i).Interface()
+		pairBytes, err := Pair{Key: fieldName, Val: fieldValue}.MarshalBSON()
+		if err != nil {
+			return nil, err
+		}
+		size += int32(len(pairBytes))
+		pairs = append(pairs, pairBytes...)
+	}
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.LittleEndian, size)
+	err = binary.Write(buf, binary.LittleEndian, pairs)
+	err = binary.Write(buf, binary.LittleEndian, byte(0x00))
 	if err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
 }
 
-func marshalMap(m M) ([]byte, int32, error) {
-	buf := new(bytes.Buffer)
-	var size int32
-	for key, val := range m {
-		pairBytes, pairSize, err := MarshalPair(Pair{Key: key, Val: val})
-		if err != nil {
-			return nil, -1, err
-		}
-		size += pairSize
-		_, err = buf.Write(pairBytes)
-	}
-	err := binary.Write(buf, binary.LittleEndian, byte(0x00))
-	if err != nil {
-		return nil, -1, err
-	}
-	return buf.Bytes(), size, nil
-}
+//func Marshal(v any) ([]byte, error) {
+//	buf := new(bytes.Buffer)
+//	var err error
+//	switch t := v.(type) {
+//	case D:
+//		objBytes, size, marshalErr := marshalObj(t)
+//		if marshalErr != nil {
+//			return nil, marshalErr
+//		}
+//		size += 4 + 1 // the size of the size int32 value itself plus the null terminator
+//		err = binary.Write(buf, binary.LittleEndian, size)
+//		err = binary.Write(buf, binary.LittleEndian, objBytes)
+//	case M:
+//		mBytes, size, marshalErr := marshalMap(t)
+//		if marshalErr != nil {
+//			return nil, marshalErr
+//		}
+//		size += 4 + 1
+//		err = binary.Write(buf, binary.LittleEndian, size)
+//		err = binary.Write(buf, binary.LittleEndian, mBytes)
+//	case A:
+//		aBytes, size, marshalErr := marshalArray(t)
+//		if marshalErr != nil {
+//			return nil, marshalErr
+//		}
+//		size += 4 + 1
+//		err = binary.Write(buf, binary.LittleEndian, size)
+//		err = binary.Write(buf, binary.LittleEndian, aBytes)
+//	default:
+//		if reflect.TypeOf(v).Kind() == reflect.Struct {
+//			sBytes, size, marshalErr := marshalStruct(v)
+//			if marshalErr != nil {
+//				return nil, marshalErr
+//			}
+//			size += 4 + 1
+//			err = binary.Write(buf, binary.LittleEndian, size)
+//			err = binary.Write(buf, binary.LittleEndian, sBytes)
+//		} else {
+//			return nil, fmt.Errorf("value must be object (ordered/unordered) or array, not of type %T", t)
+//		}
+//	}
+//	if err != nil {
+//		return nil, err
+//	}
+//	return buf.Bytes(), nil
+//}
+//
+//func marshalMap(m M) ([]byte, int32, error) {
+//	buf := new(bytes.Buffer)
+//	var size int32
+//	for key, val := range m {
+//		pairBytes, pairSize, err := MarshalPair(Pair{Key: key, Val: val})
+//		if err != nil {
+//			return nil, -1, err
+//		}
+//		size += pairSize
+//		_, err = buf.Write(pairBytes)
+//	}
+//	err := binary.Write(buf, binary.LittleEndian, byte(0x00))
+//	if err != nil {
+//		return nil, -1, err
+//	}
+//	return buf.Bytes(), size, nil
+//}
+//
+//func marshalObj(obj D) ([]byte, int32, error) {
+//	buf := new(bytes.Buffer)
+//	var size int32
+//	for _, pair := range obj {
+//		pairBytes, pairSize, err := MarshalPair(pair)
+//		if err != nil {
+//			return nil, -1, err
+//		}
+//		size += pairSize
+//		_, err = buf.Write(pairBytes)
+//	}
+//	err := binary.Write(buf, binary.LittleEndian, byte(0x00))
+//	if err != nil {
+//		return nil, -1, err
+//	}
+//	return buf.Bytes(), size, nil
+//}
+//
+//func marshalArray(array A) ([]byte, int32, error) {
+//	buf := new(bytes.Buffer)
+//	var size int32
+//	for idx, val := range array {
+//		pairBytes, pairSize, err := MarshalPair(Pair{Key: strconv.Itoa(idx), Val: val})
+//		if err != nil {
+//			return nil, -1, err
+//		}
+//		size += pairSize
+//		_, err = buf.Write(pairBytes)
+//	}
+//	err := binary.Write(buf, binary.LittleEndian, byte(0x00))
+//	if err != nil {
+//		return nil, -1, err
+//	}
+//	return buf.Bytes(), size, nil
+//}
 
-func marshalObj(obj D) ([]byte, int32, error) {
-	buf := new(bytes.Buffer)
-	var size int32
-	for _, pair := range obj {
-		pairBytes, pairSize, err := MarshalPair(pair)
-		if err != nil {
-			return nil, -1, err
-		}
-		size += pairSize
-		_, err = buf.Write(pairBytes)
-	}
-	err := binary.Write(buf, binary.LittleEndian, byte(0x00))
-	if err != nil {
-		return nil, -1, err
-	}
-	return buf.Bytes(), size, nil
-}
+//func marshalStruct(s any) ([]byte, int32, error) {
+//	rValue := reflect.ValueOf(s)
+//	rType := rValue.Type()
+//	if rValue.Kind() != reflect.Struct {
+//		return nil, 0, fmt.Errorf("value must be a struct")
+//	}
+//	buf := new(bytes.Buffer)
+//	var size int32
+//	for i := 0; i < rType.NumField(); i++ {
+//		fieldName := rType.Field(i).Name
+//		fieldValue := rValue.Field(i).Interface()
+//		pairBytes, pairSize, err := MarshalPair(Pair{Key: fieldName, Val: fieldValue})
+//		if err != nil {
+//			return nil, 0, err
+//		}
+//		size += pairSize
+//		_, err = buf.Write(pairBytes)
+//	}
+//	err := binary.Write(buf, binary.LittleEndian, byte(0x00))
+//	if err != nil {
+//		return nil, -1, err
+//	}
+//	return buf.Bytes(), size, nil
+//}
 
-func marshalArray(array A) ([]byte, int32, error) {
-	buf := new(bytes.Buffer)
-	var size int32
-	for idx, val := range array {
-		pairBytes, pairSize, err := MarshalPair(Pair{Key: strconv.Itoa(idx), Val: val})
-		if err != nil {
-			return nil, -1, err
-		}
-		size += pairSize
-		_, err = buf.Write(pairBytes)
-	}
-	err := binary.Write(buf, binary.LittleEndian, byte(0x00))
-	if err != nil {
-		return nil, -1, err
-	}
-	return buf.Bytes(), size, nil
-}
-
-func marshalStruct(s any) ([]byte, int32, error) {
-	rValue := reflect.ValueOf(s)
-	rType := rValue.Type()
-	if rValue.Kind() != reflect.Struct {
-		return nil, 0, fmt.Errorf("value must be a struct")
-	}
-	buf := new(bytes.Buffer)
-	var size int32
-	for i := 0; i < rType.NumField(); i++ {
-		fieldName := rType.Field(i).Name
-		fieldValue := rValue.Field(i).Interface()
-		pairBytes, pairSize, err := MarshalPair(Pair{Key: fieldName, Val: fieldValue})
-		if err != nil {
-			return nil, 0, err
-		}
-		size += pairSize
-		_, err = buf.Write(pairBytes)
-	}
-	err := binary.Write(buf, binary.LittleEndian, byte(0x00))
-	if err != nil {
-		return nil, -1, err
-	}
-	return buf.Bytes(), size, nil
-}
-
-func marshalValue(val any) (Type, []byte, error) {
-	buf := new(bytes.Buffer)
-	var bsonType Type
-	var err error
-	if val == nil {
-		err = binary.Write(buf, binary.LittleEndian, int8(0x00))
-		if err != nil {
-			return -1, nil, err
-		}
-		return Null, buf.Bytes(), nil
-	}
-	switch vt := val.(type) {
-	case D:
-		bsonType = Object
-		objBytes, marshalErr := Marshal(vt)
-		if marshalErr != nil {
-			return -1, nil, marshalErr
-		}
-		err = binary.Write(buf, binary.LittleEndian, objBytes)
-	case M, *M:
-		bsonType = Object
-		mapBytes, marshalErr := Marshal(vt)
-		if marshalErr != nil {
-			return -1, nil, marshalErr
-		}
-		err = binary.Write(buf, binary.LittleEndian, mapBytes)
-	case A, []A:
-		bsonType = Array
-		arrBytes, marshalErr := Marshal(vt)
-		if marshalErr != nil {
-			return -1, nil, marshalErr
-		}
-		err = binary.Write(buf, binary.LittleEndian, arrBytes)
-	case []byte:
-		bsonType = BinData
-		err = binary.Write(buf, binary.LittleEndian, vt)
-	case float64:
-		bsonType = Double
-		err = binary.Write(buf, binary.LittleEndian, vt)
-	case int32:
-		bsonType = Int
-		err = binary.Write(buf, binary.LittleEndian, vt)
-	case int:
-		bsonType = Long
-		err = binary.Write(buf, binary.LittleEndian, int64(vt))
-	case int64:
-		bsonType = Long
-		err = binary.Write(buf, binary.LittleEndian, vt)
-	case *big.Int:
-		bsonType = String
-		hexString := vt.Text(16)
-		err = binary.Write(buf, binary.LittleEndian, []byte(hexString))
-	case string:
-		bsonType = String
-		err = binary.Write(buf, binary.LittleEndian, []byte(vt))
-	case bool:
-		bsonType = Bool
-		err = binary.Write(buf, binary.LittleEndian, vt)
-	default:
-		if reflect.TypeOf(val).Kind() == reflect.Struct {
-			bsonType = Object
-			sBytes, marshalErr := Marshal(vt)
-			if marshalErr != nil {
-				return -1, nil, marshalErr
-			}
-			err = binary.Write(buf, binary.LittleEndian, sBytes)
-		} else {
-			return -1, nil, fmt.Errorf("unsupported type: %T", val)
-		}
-	}
-	if err != nil {
-		return -1, nil, fmt.Errorf("error serializing value: %v", val)
-	}
-	return bsonType, buf.Bytes(), err
-}
-
-func MarshalPair(p Pair) ([]byte, int32, error) {
-	buf := new(bytes.Buffer)
-	valType, valBytes, err := marshalValue(p.Val)
-	if err != nil {
-		return nil, -1, err
-	}
-	err = binary.Write(buf, binary.LittleEndian, valType)
-	err = binary.Write(buf, binary.LittleEndian, []byte(p.Key))
-	err = binary.Write(buf, binary.LittleEndian, byte(0x00))
-	if valType == String {
-		err = binary.Write(buf, binary.LittleEndian, int32(len(valBytes)+1))
-	}
-	if valType == BinData {
-		err = binary.Write(buf, binary.LittleEndian, int32(len(valBytes)))
-	}
-	err = binary.Write(buf, binary.LittleEndian, valBytes)
-	if valType == String {
-		err = binary.Write(buf, binary.LittleEndian, byte(0x00))
-	}
-	if err != nil {
-		return nil, -1, err
-	}
-	bufBytes := buf.Bytes()
-	return bufBytes, int32(len(bufBytes)), nil
-}
+//func marshalValue(val any) (Type, []byte, error) {
+//	buf := new(bytes.Buffer)
+//	var bsonType Type
+//	var err error
+//	if val == nil {
+//		err = binary.Write(buf, binary.LittleEndian, int8(0x00))
+//		if err != nil {
+//			return -1, nil, err
+//		}
+//		return Null, buf.Bytes(), nil
+//	}
+//	switch vt := val.(type) {
+//	case D:
+//		bsonType = Object
+//		objBytes, marshalErr := Marshal(vt)
+//		if marshalErr != nil {
+//			return -1, nil, marshalErr
+//		}
+//		err = binary.Write(buf, binary.LittleEndian, objBytes)
+//	case M, *M:
+//		bsonType = Object
+//		mapBytes, marshalErr := Marshal(vt)
+//		if marshalErr != nil {
+//			return -1, nil, marshalErr
+//		}
+//		err = binary.Write(buf, binary.LittleEndian, mapBytes)
+//	case A, []A:
+//		bsonType = Array
+//		arrBytes, marshalErr := Marshal(vt)
+//		if marshalErr != nil {
+//			return -1, nil, marshalErr
+//		}
+//		err = binary.Write(buf, binary.LittleEndian, arrBytes)
+//	case []byte:
+//		bsonType = BinData
+//		err = binary.Write(buf, binary.LittleEndian, vt)
+//	case float64:
+//		bsonType = Double
+//		err = binary.Write(buf, binary.LittleEndian, vt)
+//	case int32:
+//		bsonType = Int
+//		err = binary.Write(buf, binary.LittleEndian, vt)
+//	case int:
+//		bsonType = Long
+//		err = binary.Write(buf, binary.LittleEndian, int64(vt))
+//	case int64:
+//		bsonType = Long
+//		err = binary.Write(buf, binary.LittleEndian, vt)
+//	case *big.Int:
+//		bsonType = String
+//		hexString := vt.Text(16)
+//		err = binary.Write(buf, binary.LittleEndian, []byte(hexString))
+//	case string:
+//		bsonType = String
+//		err = binary.Write(buf, binary.LittleEndian, []byte(vt))
+//	case bool:
+//		bsonType = Bool
+//		err = binary.Write(buf, binary.LittleEndian, vt)
+//	default:
+//		if reflect.TypeOf(val).Kind() == reflect.Struct {
+//			bsonType = Object
+//			sBytes, marshalErr := Marshal(vt)
+//			if marshalErr != nil {
+//				return -1, nil, marshalErr
+//			}
+//			err = binary.Write(buf, binary.LittleEndian, sBytes)
+//		} else {
+//			return -1, nil, fmt.Errorf("unsupported type: %T", val)
+//		}
+//	}
+//	if err != nil {
+//		return -1, nil, fmt.Errorf("error serializing value: %v", val)
+//	}
+//	return bsonType, buf.Bytes(), err
+//}
+//
+//func MarshalPair(p Pair) ([]byte, int32, error) {
+//	buf := new(bytes.Buffer)
+//	valType, valBytes, err := marshalValue(p.Val)
+//	if err != nil {
+//		return nil, -1, err
+//	}
+//	err = binary.Write(buf, binary.LittleEndian, valType)
+//	err = binary.Write(buf, binary.LittleEndian, []byte(p.Key))
+//	err = binary.Write(buf, binary.LittleEndian, byte(0x00))
+//	if valType == String {
+//		err = binary.Write(buf, binary.LittleEndian, int32(len(valBytes)+1))
+//	}
+//	if valType == BinData {
+//		err = binary.Write(buf, binary.LittleEndian, int32(len(valBytes)))
+//	}
+//	err = binary.Write(buf, binary.LittleEndian, valBytes)
+//	if valType == String {
+//		err = binary.Write(buf, binary.LittleEndian, byte(0x00))
+//	}
+//	if err != nil {
+//		return nil, -1, err
+//	}
+//	bufBytes := buf.Bytes()
+//	return bufBytes, int32(len(bufBytes)), nil
+//}

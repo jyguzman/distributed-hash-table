@@ -24,9 +24,14 @@ func do(m bson.Marshaler) {
 }
 
 func main() {
-	n := kademlia.NewNode("localhost", 800, nil)
-	do(n)
-	fmt.Println(n)
+	thing := bson.M{
+		"hello": "world",
+	}
+	bytes, err := bson.Marshal(thing)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(bytes)
 	//servers, err := initServers(10)
 	//if err != nil {
 	//	panic(err)
