@@ -79,19 +79,22 @@ func (m M) MarshalBSONValue() (Type, []byte, error) {
 }
 
 func (a A) MarshalBSONValue() (Type, []byte, error) {
-	size := int32(5) // starts at 5 because of the size value itself and null terminator
-	var pairs []byte
+	innerBuf := new(bytes.Buffer)
 	for idx, val := range a {
 		pairBytes, err := Pair{strconv.Itoa(idx), val}.MarshalBSON()
 		if err != nil {
 			return 0, nil, err
 		}
-		size += int32(len(pairBytes))
-		pairs = append(pairs, pairBytes...)
+		err = binary.Write(innerBuf, binary.LittleEndian, pairBytes)
+		if err != nil {
+			return 0, nil, err
+		}
 	}
 	buf := new(bytes.Buffer)
+	innerBytes := innerBuf.Bytes()
+	size := int32(4 + 1 + len(innerBytes)) // 4 + 1 to account for the size value and null terminator
 	err := binary.Write(buf, binary.LittleEndian, size)
-	err = binary.Write(buf, binary.LittleEndian, pairs)
+	err = binary.Write(buf, binary.LittleEndian, innerBytes)
 	err = binary.Write(buf, binary.LittleEndian, byte(0x00))
 	if err != nil {
 		return 0, nil, err
@@ -165,6 +168,10 @@ func (m M) MarshalBSON() ([]byte, error) {
 
 func (a A) MarshalBSON() ([]byte, error) {
 	_, data, err := a.MarshalBSONValue()
+	//size := int32(4 + 1 + len(data)) // 4 + 1 to account for the size value and null terminator
+	//buf := new(bytes.Buffer)
+	//err = binary.Write(buf, binary.LittleEndian, size)
+	//err = binary.Write(buf, binary.LittleEndian, data)
 	if err != nil {
 		return nil, err
 	}
@@ -210,6 +217,14 @@ func MarshalValue(v any) (Type, []byte, error) {
 	case float64:
 		return BSONDouble(o).MarshalBSONValue()
 	default:
+		t := reflect.TypeOf(v)
+		if t.Kind() == reflect.Struct {
+			return marshalStruct(v)
+		}
+		if t.Kind() == reflect.Ptr {
+			val := reflect.Indirect(reflect.ValueOf(v))
+			return MarshalValue(val.Interface())
+		}
 		return 0, nil, fmt.Errorf("cannot marshal value of type %T", v)
 	}
 }
@@ -228,14 +243,19 @@ func Marshal(v any) ([]byte, error) {
 		t := reflect.TypeOf(v)
 		switch t.Kind() {
 		case reflect.Struct:
-			return marshalStruct(v)
+			_, data, err := MarshalValue(v)
+			if err != nil {
+				return nil, err
+			}
+			return data, nil
 		case reflect.Slice:
 			val := reflect.ValueOf(v)
 			var a A
 			for i := 0; i < val.Len(); i++ {
 				a = append(a, val.Index(i).Interface())
 			}
-			return a.MarshalBSON()
+			fmt.Println("a:", a)
+			return Marshal(a)
 		case reflect.Ptr:
 			val := reflect.Indirect(reflect.ValueOf(v))
 			return Marshal(val.Interface())
@@ -245,30 +265,33 @@ func Marshal(v any) ([]byte, error) {
 	}
 }
 
-func marshalStruct(s any) ([]byte, error) {
+func marshalStruct(s any) (Type, []byte, error) {
 	rValue := reflect.ValueOf(s)
 	rType := rValue.Type()
 	if rValue.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("value must be a struct")
+		return 0, nil, fmt.Errorf("value must be a struct")
 	}
-	var size int32
-	var pairs []byte
+	innerBuf := new(bytes.Buffer)
 	for i := 0; i < rType.NumField(); i++ {
 		fieldName := rType.Field(i).Name
 		fieldValue := rValue.Field(i).Interface()
 		pairBytes, err := Pair{Key: fieldName, Val: fieldValue}.MarshalBSON()
 		if err != nil {
-			return nil, err
+			return 0, nil, err
 		}
-		size += int32(len(pairBytes))
-		pairs = append(pairs, pairBytes...)
+		err = binary.Write(innerBuf, binary.LittleEndian, pairBytes)
+		if err != nil {
+			return 0, nil, err
+		}
 	}
 	buf := new(bytes.Buffer)
+	innerBytes := innerBuf.Bytes()
+	size := int32(4 + 1 + len(innerBytes))
 	err := binary.Write(buf, binary.LittleEndian, size)
-	err = binary.Write(buf, binary.LittleEndian, pairs)
+	err = binary.Write(buf, binary.LittleEndian, innerBytes)
 	err = binary.Write(buf, binary.LittleEndian, byte(0x00))
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
-	return buf.Bytes(), nil
+	return Object, buf.Bytes(), nil
 }

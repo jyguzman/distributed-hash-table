@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go-dht/bson"
 	"go-dht/kademlia"
+	"slices"
 )
 
 func initServers(n int) ([]kademlia.Server, error) {
@@ -19,19 +20,32 @@ func initServers(n int) ([]kademlia.Server, error) {
 	return servers, nil
 }
 
-func do(m bson.Marshaler) {
-	fmt.Println(m)
+type Test struct {
+	One   int32
+	Three string
 }
 
 func main() {
-	thing := bson.M{
-		"hello": "world",
+	t := &Test{100, "hi"}
+	tBytes, errOne := bson.Marshal(t)
+	if errOne != nil {
+		panic(errOne)
 	}
-	bytes, err := bson.Marshal(thing)
+	t2 := &Test{200, "bye"}
+	t2Bytes, errTwo := bson.Marshal(t2)
+	if errTwo != nil {
+		panic(errTwo)
+	}
+	vals := []*Test{t, t2}
+	bytes, err := bson.Marshal(vals)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(tBytes, len(tBytes))
+	fmt.Println(t2Bytes, len(t2Bytes))
 	fmt.Println(bytes)
+	tBytes = append(tBytes, t2Bytes...)
+	fmt.Println(slices.Equal(tBytes, bytes))
 	//servers, err := initServers(10)
 	//if err != nil {
 	//	panic(err)
