@@ -37,19 +37,22 @@ func (bs BSONString) MarshalBSONValue() (Type, []byte, error) {
 }
 
 func (d D) MarshalBSONValue() (Type, []byte, error) {
-	size := int32(5) // starts at 5 because of the size value itself and null terminator
-	var pairs []byte
+	innerBuf := new(bytes.Buffer)
 	for _, pair := range d {
 		pairBytes, err := pair.MarshalBSON()
 		if err != nil {
 			return 0, nil, err
 		}
-		size += int32(len(pairBytes))
-		pairs = append(pairs, pairBytes...)
+		err = binary.Write(innerBuf, binary.LittleEndian, pairBytes)
+		if err != nil {
+			return 0, nil, err
+		}
 	}
 	buf := new(bytes.Buffer)
+	innerBytes := innerBuf.Bytes()
+	size := int32(4 + len(innerBytes) + 1) // 4 + 1 to account for the size value and null terminator
 	err := binary.Write(buf, binary.LittleEndian, size)
-	err = binary.Write(buf, binary.LittleEndian, pairs)
+	err = binary.Write(buf, binary.LittleEndian, innerBytes)
 	err = binary.Write(buf, binary.LittleEndian, byte(0x00))
 	if err != nil {
 		return 0, nil, err
@@ -58,19 +61,22 @@ func (d D) MarshalBSONValue() (Type, []byte, error) {
 }
 
 func (m M) MarshalBSONValue() (Type, []byte, error) {
-	size := int32(5) // starts at 5 because of the size value itself and null terminator
-	var pairs []byte
+	innerBuf := new(bytes.Buffer)
 	for field, val := range m {
 		pairBytes, err := Pair{field, val}.MarshalBSON()
 		if err != nil {
 			return 0, nil, err
 		}
-		size += int32(len(pairBytes))
-		pairs = append(pairs, pairBytes...)
+		err = binary.Write(innerBuf, binary.LittleEndian, pairBytes)
+		if err != nil {
+			return 0, nil, err
+		}
 	}
 	buf := new(bytes.Buffer)
+	innerBytes := innerBuf.Bytes()
+	size := int32(4 + len(innerBytes) + 1) // 4 + 1 to account for the size value and null terminator
 	err := binary.Write(buf, binary.LittleEndian, size)
-	err = binary.Write(buf, binary.LittleEndian, pairs)
+	err = binary.Write(buf, binary.LittleEndian, innerBytes)
 	err = binary.Write(buf, binary.LittleEndian, byte(0x00))
 	if err != nil {
 		return 0, nil, err
@@ -92,7 +98,7 @@ func (a A) MarshalBSONValue() (Type, []byte, error) {
 	}
 	buf := new(bytes.Buffer)
 	innerBytes := innerBuf.Bytes()
-	size := int32(4 + 1 + len(innerBytes)) // 4 + 1 to account for the size value and null terminator
+	size := int32(4 + len(innerBytes) + 1) // 4 + 1 to account for the size value and null terminator
 	err := binary.Write(buf, binary.LittleEndian, size)
 	err = binary.Write(buf, binary.LittleEndian, innerBytes)
 	err = binary.Write(buf, binary.LittleEndian, byte(0x00))
@@ -168,10 +174,6 @@ func (m M) MarshalBSON() ([]byte, error) {
 
 func (a A) MarshalBSON() ([]byte, error) {
 	_, data, err := a.MarshalBSONValue()
-	//size := int32(4 + 1 + len(data)) // 4 + 1 to account for the size value and null terminator
-	//buf := new(bytes.Buffer)
-	//err = binary.Write(buf, binary.LittleEndian, size)
-	//err = binary.Write(buf, binary.LittleEndian, data)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +256,6 @@ func Marshal(v any) ([]byte, error) {
 			for i := 0; i < val.Len(); i++ {
 				a = append(a, val.Index(i).Interface())
 			}
-			fmt.Println("a:", a)
 			return Marshal(a)
 		case reflect.Ptr:
 			val := reflect.Indirect(reflect.ValueOf(v))
