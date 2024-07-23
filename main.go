@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go-dht/bson"
 	"go-dht/kademlia"
-	"slices"
 )
 
 func initServers(n int) ([]kademlia.Server, error) {
@@ -45,7 +44,11 @@ func main() {
 	fmt.Println(t2Bytes, len(t2Bytes))
 	fmt.Println(bytes)
 	tBytes = append(tBytes, t2Bytes...)
-	fmt.Println(slices.Equal(tBytes, bytes))
+	boolBytes, err := bson.Marshal([]bool{true, false, true})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(boolBytes)
 	//servers, err := initServers(10)
 	//if err != nil {
 	//	panic(err)

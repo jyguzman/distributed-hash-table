@@ -220,14 +220,22 @@ func MarshalValue(v any) (Type, []byte, error) {
 		return BSONDouble(o).MarshalBSONValue()
 	default:
 		t := reflect.TypeOf(v)
-		if t.Kind() == reflect.Struct {
+		switch t.Kind() {
+		case reflect.Struct:
 			return marshalStruct(v)
-		}
-		if t.Kind() == reflect.Ptr {
+		case reflect.Slice:
+			val := reflect.ValueOf(v)
+			a := A(make([]any, val.Len()))
+			for i := 0; i < val.Len(); i++ {
+				a[i] = val.Index(i).Interface()
+			}
+			return MarshalValue(a)
+		case reflect.Ptr:
 			val := reflect.Indirect(reflect.ValueOf(v))
 			return MarshalValue(val.Interface())
+		default:
+			return 0, nil, fmt.Errorf("cannot marshal value of type %T", v)
 		}
-		return 0, nil, fmt.Errorf("cannot marshal value of type %T", v)
 	}
 }
 
@@ -252,16 +260,16 @@ func Marshal(v any) ([]byte, error) {
 			return data, nil
 		case reflect.Slice:
 			val := reflect.ValueOf(v)
-			var a A
+			a := A(make([]any, val.Len()))
 			for i := 0; i < val.Len(); i++ {
-				a = append(a, val.Index(i).Interface())
+				a[i] = val.Index(i).Interface()
 			}
 			return Marshal(a)
 		case reflect.Ptr:
 			val := reflect.Indirect(reflect.ValueOf(v))
 			return Marshal(val.Interface())
 		default:
-			return nil, fmt.Errorf("cannot marshal value of type %T", v)
+			return nil, fmt.Errorf("cannot marshal object of type %T", v)
 		}
 	}
 }
