@@ -44,7 +44,7 @@ func main() {
 	fmt.Println(t2Bytes, len(t2Bytes))
 	fmt.Println(bytes)
 	tBytes = append(tBytes, t2Bytes...)
-	boolBytes, err := bson.Marshal([]bool{true, false, true})
+	boolBytes, err := bson.Marshal(map[string]bool{"hello": true})
 	if err != nil {
 		panic(err)
 	}

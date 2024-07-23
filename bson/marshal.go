@@ -206,30 +206,39 @@ func MarshalValue(v any) (Type, []byte, error) {
 	switch o := v.(type) {
 	case ValueMarshaler:
 		return o.MarshalBSONValue()
+	case float64:
+		return BSONDouble(o).MarshalBSONValue()
 	case string:
 		return BSONString(o).MarshalBSONValue()
 	case []byte:
 		return BSONBinData(o).MarshalBSONValue()
-	case int64:
-		return BSONLong(o).MarshalBSONValue()
-	case int32:
-		return BSONInt(o).MarshalBSONValue()
 	case bool:
 		return BSONBool(o).MarshalBSONValue()
-	case float64:
-		return BSONDouble(o).MarshalBSONValue()
+	case int32:
+		return BSONInt(o).MarshalBSONValue()
+	case nil:
+		return Null, []byte{0x00}, nil
+	case int64:
+		return BSONLong(o).MarshalBSONValue()
 	default:
 		t := reflect.TypeOf(v)
 		switch t.Kind() {
 		case reflect.Struct:
 			return marshalStruct(v)
-		case reflect.Slice:
+		case reflect.Slice, reflect.Array:
 			val := reflect.ValueOf(v)
 			a := A(make([]any, val.Len()))
 			for i := 0; i < val.Len(); i++ {
 				a[i] = val.Index(i).Interface()
 			}
 			return MarshalValue(a)
+		case reflect.Map:
+			val := reflect.ValueOf(v)
+			m := M{}
+			for _, key := range val.MapKeys() {
+				m[key.Interface().(string)] = val.MapIndex(key).Interface()
+			}
+			return MarshalValue(m)
 		case reflect.Ptr:
 			val := reflect.Indirect(reflect.ValueOf(v))
 			return MarshalValue(val.Interface())
@@ -258,13 +267,20 @@ func Marshal(v any) ([]byte, error) {
 				return nil, err
 			}
 			return data, nil
-		case reflect.Slice:
+		case reflect.Slice, reflect.Array:
 			val := reflect.ValueOf(v)
 			a := A(make([]any, val.Len()))
 			for i := 0; i < val.Len(); i++ {
 				a[i] = val.Index(i).Interface()
 			}
 			return Marshal(a)
+		case reflect.Map:
+			val := reflect.ValueOf(v)
+			m := M{}
+			for _, key := range val.MapKeys() {
+				m[key.Interface().(string)] = val.MapIndex(key).Interface()
+			}
+			return Marshal(m)
 		case reflect.Ptr:
 			val := reflect.Indirect(reflect.ValueOf(v))
 			return Marshal(val.Interface())
