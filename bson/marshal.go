@@ -36,9 +36,9 @@ func (bs BSONString) MarshalBSONValue() (Type, []byte, error) {
 	return String, buf.Bytes(), nil
 }
 
-func (d *D) MarshalBSONValue() (Type, []byte, error) {
+func (d D) MarshalBSONValue() (Type, []byte, error) {
 	innerBuf := new(bytes.Buffer)
-	for _, pair := range *d {
+	for _, pair := range d {
 		pairBytes, err := pair.MarshalBSON()
 		if err != nil {
 			return 0, nil, err
@@ -156,7 +156,7 @@ func (bf BSONField) MarshalBSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (d *D) MarshalBSON() ([]byte, error) {
+func (d D) MarshalBSON() ([]byte, error) {
 	_, data, err := d.MarshalBSONValue()
 	if err != nil {
 		return nil, err
@@ -204,6 +204,12 @@ func (p Pair) MarshalBSON() ([]byte, error) {
 
 func MarshalValue(v any) (Type, []byte, error) {
 	switch o := v.(type) {
+	case Marshaler:
+		data, err := o.MarshalBSON()
+		if err != nil {
+			return 0, nil, err
+		}
+		return Object, data, nil
 	case ValueMarshaler:
 		return o.MarshalBSONValue()
 	case float64:
@@ -283,7 +289,6 @@ func Marshal(v any) ([]byte, error) {
 			return Marshal(m)
 		case reflect.Ptr:
 			val := reflect.Indirect(reflect.ValueOf(v))
-			fmt.Println("val", val)
 			return Marshal(val.Interface())
 		default:
 			return nil, fmt.Errorf("cannot marshal object of type %T", v)

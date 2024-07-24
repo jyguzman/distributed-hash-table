@@ -32,7 +32,7 @@ func NewNode(host string, port int32, id *big.Int) Node {
 	return Node{Host: host, Port: port, ID: id}
 }
 
-func (n *Node) ToTriple() Contact {
+func (n Node) ToTriple() Contact {
 	return Contact{Host: n.Host, Port: n.Port, Id: n.ID.String()}
 }
 
@@ -64,13 +64,13 @@ func NodeFromMap(arrMap bson.M) (Node, error) {
 	return NodeFromTuple(result), nil
 }
 
-func (n *Node) MarshalBSON() ([]byte, error) {
+func (n Node) MarshalBSON() ([]byte, error) {
 	m := bson.M{
 		"id":   n.ID.Text(16),
 		"host": n.Host,
 		"port": n.Port,
 	}
-	data, err := m.MarshalBSON()
+	data, err := bson.Marshal(m)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (n *Node) MarshalBSON() ([]byte, error) {
 
 func (n *Node) UnmarshalBSON(data []byte) error {
 	m := bson.M{}
-	_, err := bson.Unmarshal(data, &m)
+	err := bson.Unmarshal(data, &m)
 	if err != nil {
 		return err
 	}
@@ -100,19 +100,19 @@ func (n *Node) UnmarshalBSON(data []byte) error {
 	return nil
 }
 
-func (n *Node) Tuple() bson.A {
+func (n Node) Tuple() bson.A {
 	return bson.A{n.Host, n.Port, n.ID}
 }
 
-func (n *Node) String() string {
+func (n Node) String() string {
 	return fmt.Sprintf("(%s:%d %s)", n.Host, n.Port, n.ID.Text(16))
 }
 
-func (n *Node) Xor(other Node) *big.Int {
+func (n Node) Xor(other Node) *big.Int {
 	return new(big.Int).Xor(n.ID, other.ID)
 }
 
-func (n *Node) Prefix(length int) string {
+func (n Node) Prefix(length int) string {
 	pre := ""
 	for i := 0; i < length; i++ {
 		pre += strconv.Itoa(int(n.ID.Bit(i)))

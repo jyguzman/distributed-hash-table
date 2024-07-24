@@ -40,8 +40,8 @@ type Raw struct {
 }
 
 type RawD struct {
-	Size   int32
-	Fields []BSONField
-	Values []*Raw
-	Pairs  map[string]*Raw
+	Size  int32
+	Pairs map[string]*Raw
 }
+
+type RawArray []*Raw
