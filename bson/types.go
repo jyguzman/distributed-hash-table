@@ -38,3 +38,10 @@ type Raw struct {
 	Type Type
 	Data []byte
 }
+
+type RawD struct {
+	Size   int32
+	Fields []BSONField
+	Values []*Raw
+	Pairs  map[string]*Raw
+}

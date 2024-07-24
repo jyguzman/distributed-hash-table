@@ -25,30 +25,43 @@ type Test struct {
 }
 
 func main() {
-	t := &Test{100, "hi"}
-	tBytes, errOne := bson.Marshal(t)
-	if errOne != nil {
-		panic(errOne)
+	m := bson.M{
+		"hello":  5.10,
+		"number": 2.5,
+		"inner": &bson.M{
+			"one": 1.5,
+		},
+		"this": 10.0,
 	}
-	t2 := &Test{200, "bye"}
-	t2Bytes, errTwo := bson.Marshal(t2)
-	if errTwo != nil {
-		panic(errTwo)
-	}
-	vals := []*Test{t, t2}
-	bytes, err := bson.Marshal(vals)
+	mBytes, err := bson.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(tBytes, len(tBytes))
-	fmt.Println(t2Bytes, len(t2Bytes))
-	fmt.Println(bytes)
-	tBytes = append(tBytes, t2Bytes...)
-	boolBytes, err := bson.Marshal(map[string]bool{"hello": true})
+	fmt.Println(mBytes)
+	//fmt.Println(mBytes)
+	n := &bson.M{}
+	err = n.UnmarshalBSON(mBytes)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(boolBytes)
+	fmt.Println(*n)
+	//r := bson.NewReader(mBytes)
+	//s, err := r.ReadDocument()
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("s:", *s)
+	//raw := s.Pairs["inner"]
+	////p, err := bson.Marshal(raw.Data)
+	////if err != nil {
+	////	panic(err)
+	////}
+	//newR := bson.NewReader(raw.Data)
+	//sRawD, err := newR.ReadDocument()
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("sRawD:", *sRawD)
 	//servers, err := initServers(10)
 	//if err != nil {
 	//	panic(err)

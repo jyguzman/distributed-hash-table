@@ -9,18 +9,73 @@ import (
 )
 
 type Unmarshaler interface {
-	UnmarshalBSON() error
+	UnmarshalBSON([]byte) error
 }
 
 type ValueUnmarshaler interface {
-	UnmarshalBSONValue() error
+	UnmarshalBSONValue([]byte) error
 }
 
-func UnmarshalValue(t Type, v []byte, o any) error {
-	switch t {
+func (rv Raw) Unmarshal(v any) {
+	switch rv.Type {
 	case Double:
+	case String:
+	case Int:
+	case Long:
+	case Bool:
+	}
+}
+
+func (m M) UnmarshalBSON(b []byte) error {
+	r := NewReader(b)
+	raw, err := r.ReadDocument()
+	if err != nil {
+		return err
+	}
+	for field, val := range raw.Pairs {
+		var v any
+		err = UnmarshalValue(val.Type, val.Data, &v)
+		if err != nil {
+			return err
+		}
+		m[field] = v
+	}
+	return nil
+}
+
+func UnmarshalValue(t Type, v []byte, o *any) error {
+	r := bytes.NewReader(v)
+	var err error
+	switch t {
+	case Object, Array:
+		m := &M{}
+		err = m.UnmarshalBSON(v)
+		*o = *m
+	case Double:
+		var f float64
+		err = binary.Read(r, binary.LittleEndian, &f)
+		*o = f
+	case String:
+		*o = string(v)
+	case Int:
+		//x := o.(*int32)
+		err = binary.Read(r, binary.LittleEndian, o)
+	case Long:
+		//x := o.(*int64)
+		err = binary.Read(r, binary.LittleEndian, o)
+	case BinData:
+		copy((*o).([]byte), v)
+	case Bool:
+		if v[0] == byte(0) {
+			*o = false
+		} else {
+			*o = true
+		}
 	default:
 		return fmt.Errorf("cannot unmarshal %v into Go value of type %v", t, reflect.TypeOf(o))
+	}
+	if err != nil {
+		return err
 	}
 	return nil
 }
