@@ -102,40 +102,40 @@ func main() {
 		ArgEight float32
 		ArgNine  InnerThing
 	}
-	//type Args struct {
-	//	ArgOne   string
-	//	ArgTwo   any
-	//	ArgThree any
-	//	ArgFour  any
-	//	ArgFive  uint32
-	//	ArgSix   any
-	//	ArgSeven any
-	//}
-	//args := Args{
-	//	ArgOne: "hello",
-	//	ArgTwo: uint(8),
-	//	ArgThree: WhoaAgain{
-	//		Twelve:   "hello",
-	//		Thirteen: false,
-	//	},
-	//	ArgFour: []any{1.0, 100, "hello"},
-	//	ArgFive: 80,
-	//	ArgSix:  1.75,
-	//	ArgSeven: Thing{
-	//		ArgEight: 10.9,
-	//		ArgNine:  InnerThing{ArgTen: "world"},
-	//	},
-	//}
-	args := Thing{
-		ArgEight: 10.5,
-		ArgNine: InnerThing{
-			ArgTen: "hello, world",
+	type Args struct {
+		ArgOne   string
+		ArgTwo   any
+		ArgThree any
+		ArgFour  any
+		ArgFive  uint32
+		ArgSix   any
+		ArgSeven any
+	}
+	args := Args{
+		ArgOne: "hello",
+		ArgTwo: uint(8),
+		ArgThree: WhoaAgain{
+			Twelve:   "hello",
+			Thirteen: false,
+		},
+		ArgFour: []any{1.0, 100, "hello"},
+		ArgFive: 80,
+		ArgSix:  1.75,
+		ArgSeven: Thing{
+			ArgEight: 10.9,
+			ArgNine:  InnerThing{ArgTen: "world"},
 		},
 	}
+	//args := Thing{
+	//	ArgEight: 10.5,
+	//	ArgNine: InnerThing{
+	//		ArgTen: "hello, world",
+	//	},
+	//}
 	argsBytes, _ := bson.Marshal(args)
 	fmt.Println(argsBytes)
 
-	var t Thing
+	var t Args
 	err := bson.Unmarshal(argsBytes, &t)
 	if err != nil {
 		panic(err)

@@ -387,6 +387,7 @@ func structFromBSONMap(m M, valueType reflect.Type) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("valueType", valueType, valueType.Kind())
 	var newStruct any
 	if valueType.Kind() == reflect.Map {
 		var structFields []reflect.StructField
@@ -399,7 +400,7 @@ func structFromBSONMap(m M, valueType reflect.Type) (any, error) {
 		typ := reflect.StructOf(structFields)
 		newStruct = reflect.New(typ).Interface()
 	} else {
-		newStruct = reflect.TypeOf(reflect.New(valueType).Interface())
+		newStruct = reflect.New(valueType).Interface()
 	}
 	err = Unmarshal(mBytes, newStruct)
 	if err != nil {
