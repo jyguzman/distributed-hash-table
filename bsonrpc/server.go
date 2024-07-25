@@ -34,6 +34,26 @@ func NewServer(host string, port int) (*Server, error) {
 	}, nil
 }
 
+//func (s *Server) Listen() {
+//	fmt.Println("Listening on " + s.host + ":" + strconv.Itoa(s.port))
+//	for {
+//		reqBytes, sender, err := s.readRequest()
+//		if err != nil {
+//			log.Println("Error reading request: " + err.Error())
+//		} else {
+//			reqObj, parseErr := s.unmarshalRequest(reqBytes)
+//			if parseErr != nil {
+//				log.Println("Error parsing request: " + parseErr.Error())
+//			} else {
+//				sendErr := s.sendResponse(reqObj, sender)
+//				if sendErr != nil {
+//					log.Println("Error sending response: " + sendErr.Error())
+//				}
+//			}
+//		}
+//	}
+//}
+
 func (s *Server) Listen() {
 	fmt.Println("Listening on " + s.host + ":" + strconv.Itoa(s.port))
 	for {
@@ -63,24 +83,36 @@ func (s *Server) readRequest() ([]byte, *net.UDPAddr, error) {
 	return buf[:n], sender, err
 }
 
-func (s *Server) unmarshalRequest(req []byte) (bson.M, error) {
-	args := bson.M{}
-	err := bson.Unmarshal(req, args)
+//func (s *Server) unmarshalRequest(req []byte) (bson.M, error) {
+//	args := bson.M{}
+//	err := bson.Unmarshal(req, args)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return args, nil
+//}
+
+func (s *Server) unmarshalRequest(req []byte) (*Call, error) {
+	fmt.Println(req)
+	var request Call
+	fmt.Println("jkkjer", &request)
+	err := bson.Unmarshal(req, &request)
 	if err != nil {
 		return nil, err
 	}
 
-	return args, nil
+	fmt.Println("call:", request)
+	return &request, nil
 }
 
-func (s *Server) sendResponse(request bson.M, sender *net.UDPAddr) error {
-	reply := bson.M{}
-	err := s.callMethod(request, reply)
+func (s *Server) sendResponse(request *Call, sender *net.UDPAddr) error {
+	err := s.callMethod(request.Method, request.Args, request.Reply)
 	if err != nil {
 		return err
 	}
 
-	replyBytes, err := bson.Marshal(reply)
+	replyBytes, err := bson.Marshal(request.Reply)
 	if err != nil {
 		return err
 	}
@@ -93,11 +125,19 @@ func (s *Server) sendResponse(request bson.M, sender *net.UDPAddr) error {
 	return nil
 }
 
+//func isValidMethod(serviceType reflect.Type, method reflect.Method) bool {
+//	return method.Type.NumIn() == 3 &&
+//		method.Type.In(0) == serviceType &&
+//		method.Type.In(1) == reflect.TypeOf(bson.M{}) &&
+//		method.Type.In(2) == reflect.TypeOf(bson.M{}) &&
+//		method.Type.NumOut() == 1 &&
+//		method.Type.Out(0) == reflect.TypeOf((*error)(nil)).Elem()
+//}
+
 func isValidMethod(serviceType reflect.Type, method reflect.Method) bool {
 	return method.Type.NumIn() == 3 &&
 		method.Type.In(0) == serviceType &&
-		method.Type.In(1) == reflect.TypeOf(bson.M{}) &&
-		method.Type.In(2) == reflect.TypeOf(bson.M{}) &&
+		method.Type.In(2).Kind() == reflect.Ptr &&
 		method.Type.NumOut() == 1 &&
 		method.Type.Out(0) == reflect.TypeOf((*error)(nil)).Elem()
 }
@@ -124,8 +164,7 @@ func (s *Server) Register(receiver any) error {
 	return nil
 }
 
-func (s *Server) callMethod(args bson.M, reply bson.M) error {
-	methodName := args["q"].(string)
+func (s *Server) callMethod(methodName string, args any, reply any) error {
 	method, ok := s.serviceMethods[methodName]
 	if !ok {
 		return fmt.Errorf("no such method: " + methodName)
@@ -139,3 +178,19 @@ func (s *Server) callMethod(args bson.M, reply bson.M) error {
 
 	return nil
 }
+
+//func (s *Server) callMethod(args bson.M, reply bson.M) error {
+//	methodName := args["q"].(string)
+//	method, ok := s.serviceMethods[methodName]
+//	if !ok {
+//		return fmt.Errorf("no such method: " + methodName)
+//	}
+//
+//	fnArgs := []reflect.Value{s.service, reflect.ValueOf(args), reflect.ValueOf(reply)}
+//	errVal := method.Func.Call(fnArgs)[0].Interface()
+//	if errVal != nil {
+//		return errVal.(error)
+//	}
+//
+//	return nil
+//}

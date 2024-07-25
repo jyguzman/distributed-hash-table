@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"reflect"
+	"slices"
 )
 
 type Unmarshaler interface {
@@ -63,6 +64,8 @@ func (rv Raw) Unmarshal(v any) error {
 			return fmt.Errorf("cannot unmarshal Object into %T", t)
 		}
 		err = t.UnmarshalBSON(rv.Data)
+	case Null:
+		v = nil
 	}
 	return err
 }
@@ -102,6 +105,7 @@ func (d *D) UnmarshalBSON(b []byte) error {
 			err = UnmarshalValue(val.Type, val.Data, v)
 			value = *v
 		case Null:
+			value = nil
 		case Array:
 			v := new(A)
 			err = v.UnmarshalWithParent(val.Data, d)
@@ -147,6 +151,7 @@ func (m *M) UnmarshalBSON(b []byte) error {
 			err = UnmarshalValue(val.Type, val.Data, &v)
 			value = v
 		case Null:
+			value = nil
 		case Array:
 			v := new(A)
 			err = v.UnmarshalBSON(val.Data)
@@ -274,7 +279,7 @@ func Unmarshal(data []byte, obj any) error {
 	}
 	switch t := obj.(type) {
 	case nil:
-		return fmt.Errorf("cannot unmarshal into nil object")
+		return UnmarshalValue(Null, data, obj)
 	case Unmarshaler:
 		return t.UnmarshalBSON(data)
 	case *float64:
@@ -295,6 +300,8 @@ func Unmarshal(data []byte, obj any) error {
 			if err != nil {
 				return err
 			}
+			fmt.Println("obj:", obj)
+			fmt.Println("m:", m)
 			err = unmarshalStruct(m, obj)
 			return nil
 		}
@@ -314,81 +321,181 @@ func unmarshalStruct(m M, obj any) error {
 	}
 
 	for k, v := range m {
-		typ := reflect.TypeOf(v)
-		fieldTyp := rValue.Elem().FieldByName(k).Type()
-		switch typ.Kind() {
+		vType := reflect.TypeOf(v)
+		field := rValue.Elem().FieldByName(k)
+		fieldType := field.Type()
+		var valueToSetType reflect.Type
+		if v == nil {
+			field.Set(reflect.Zero(field.Type()))
+			continue
+		}
+		if fieldType.Kind() == reflect.Interface {
+			valueToSetType = reflect.TypeOf(v)
+		} else {
+			valueToSetType = fieldType
+		}
+		switch vType.Kind() {
 		case reflect.Map:
-			mBytes, err := Marshal(m[k].(M))
+			newStruct, err := structFromBSONMap(v.(M), valueToSetType)
 			if err != nil {
 				return err
 			}
-			sfType := rValue.Elem().FieldByName(k).Type()
-			newStruct := reflect.New(sfType).Interface()
-			err = Unmarshal(mBytes, newStruct)
-			if err != nil {
-				return err
-			}
-			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(newStruct).Elem())
+			fmt.Println("newStruct:", newStruct, obj)
+			field.Set(reflect.ValueOf(newStruct).Elem())
 		case reflect.Array, reflect.Slice:
-			arrayType := rValue.Elem().FieldByName(k).Type()
-			newArray, err := unmarshalArray(v.(A), arrayType)
+			newArray, err := sliceFromBSONArray(v.(A), valueToSetType)
 			if err != nil {
 				return err
 			}
-			rValue.Elem().FieldByName(k).Set(*newArray)
-		case reflect.Int32:
-			switch fieldTyp.Kind() {
-			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
-				rValue.Elem().FieldByName(k).SetInt(int64(v.(int32)))
-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				rValue.Elem().FieldByName(k).SetUint(uint64(v.(int32)))
-			default:
-				return fmt.Errorf("cannot marshal %T into int", v)
-			}
-		case reflect.Int64:
-			switch fieldTyp.Kind() {
-			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
-				rValue.Elem().FieldByName(k).SetInt(v.(int64))
-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				rValue.Elem().FieldByName(k).SetUint(uint64(v.(int64)))
-			default:
-				return fmt.Errorf("cannot marshal %T into int", v)
+			field.Set(*newArray)
+		case reflect.Int32, reflect.Int64:
+			if field.Type().Kind() == reflect.Interface {
+				field.Set(reflect.ValueOf(v))
+			} else {
+				err := setStructIntegerField(field, v)
+				if err != nil {
+					return err
+				}
 			}
 		case reflect.Float64:
-			rValue.Elem().FieldByName(k).SetFloat(v.(float64))
+			if fieldType.Kind() == reflect.Interface {
+				field.Set(reflect.ValueOf(v))
+			} else {
+				field.SetFloat(v.(float64))
+			}
 		case reflect.String:
-			rValue.Elem().FieldByName(k).SetString(v.(string))
+			if fieldType.Kind() == reflect.Interface {
+				field.Set(reflect.ValueOf(v))
+			} else {
+				field.SetString(v.(string))
+			}
 		case reflect.Bool:
-			rValue.Elem().FieldByName(k).SetBool(v.(bool))
+			if fieldType.Kind() == reflect.Interface {
+				field.Set(reflect.ValueOf(v))
+			} else {
+				field.SetBool(v.(bool))
+			}
 		default:
-			return fmt.Errorf("cannot unmarshal into %T", v)
+			return fmt.Errorf("cannot unmarshal into %T", m[k])
 		}
 	}
 	return nil
 }
 
-func unmarshalArray(arr A, typ reflect.Type) (*reflect.Value, error) {
-	newA := reflect.MakeSlice(typ, len(arr), len(arr))
-	elemType := reflect.TypeOf(newA.Index(0).Interface())
-	for i := 0; i < newA.Len(); i++ {
-		if reflect.TypeOf(arr[i]).Kind() == reflect.Map {
-			arrMBytes, err := Marshal(arr[i].(M))
-			if err != nil {
-				return nil, err
-			}
-			newStruct := reflect.New(elemType).Interface()
-			err = Unmarshal(arrMBytes, newStruct)
-			if err != nil {
-				return nil, err
-			}
-			newA.Index(i).Set(reflect.ValueOf(newStruct).Elem())
-		} else {
-			newA.Index(i).Set(reflect.ValueOf(arr[i]))
-		}
+func structFromBSONMap(m M, valueType reflect.Type) (any, error) {
+	mBytes, err := Marshal(m)
+	if err != nil {
+		return nil, err
 	}
-	return &newA, nil
+	var newStruct any
+	if valueType.Kind() == reflect.Map {
+		var structFields []reflect.StructField
+		for key, val := range m {
+			structFields = append(structFields, reflect.StructField{
+				Name: key,
+				Type: reflect.TypeOf(val),
+			})
+		}
+		typ := reflect.StructOf(structFields)
+		newStruct = reflect.New(typ).Interface()
+	} else {
+		newStruct = reflect.TypeOf(reflect.New(valueType).Interface())
+	}
+	err = Unmarshal(mBytes, newStruct)
+	if err != nil {
+		return nil, err
+	}
+	return newStruct, nil
 }
 
-func setStructFieldValue(field reflect.Value, val any) error {
+func sliceFromBSONArray(fromArray A, newArrayType reflect.Type) (*reflect.Value, error) {
+	newArray := reflect.MakeSlice(newArrayType, len(fromArray), len(fromArray))
+	for i := 0; i < newArray.Len(); i++ {
+		elemType := reflect.TypeOf(newArray.Index(i).Interface())
+		if reflect.TypeOf(fromArray[i]).Kind() == reflect.Map {
+			newStruct, err := structFromBSONMap(fromArray[i].(M), elemType)
+			if err != nil {
+				return nil, err
+			}
+			newArray.Index(i).Set(reflect.ValueOf(newStruct).Elem())
+		} else {
+			newArray.Index(i).Set(reflect.ValueOf(fromArray[i]))
+		}
+	}
+	return &newArray, nil
+}
+
+func setStructIntegerField(field reflect.Value, v any) error {
+	rValue, vType, fieldType := reflect.ValueOf(v), reflect.TypeOf(v), field.Type()
+	intKinds := []reflect.Kind{
+		reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int,
+		reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+	}
+	if !slices.Contains(intKinds, field.Kind()) {
+		return fmt.Errorf("cannot set %T into field of type %s", rValue.Kind(), fieldType)
+	}
+	if !slices.Contains(intKinds, vType.Kind()) {
+		return fmt.Errorf("val (%T, %v) is not int32 or int64", v, v)
+	}
+	switch vType.Kind() {
+	case reflect.Int32:
+		switch fieldType.Kind() {
+		case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
+			field.SetInt(int64(v.(int32)))
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			field.SetUint(uint64(v.(int32)))
+		default:
+			return fmt.Errorf("cannot marshal %T into int", v)
+		}
+	case reflect.Int64:
+		switch fieldType.Kind() {
+		case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
+			field.SetInt(v.(int64))
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			field.SetUint(uint64(v.(int64)))
+		default:
+			return fmt.Errorf("cannot marshal %T into int", v)
+		}
+	default:
+		return fmt.Errorf("%T is not an int32 or int64", v)
+	}
+	return nil
+}
+
+func setStructField(field reflect.Value, v any) error {
+	if !field.IsValid() {
+		return fmt.Errorf("field %v is not valid", field)
+	}
+	if !field.CanSet() {
+		return fmt.Errorf("field %v is not settable", field)
+	}
+	vType := reflect.TypeOf(v)
+	switch vType.Kind() {
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int,
+		reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return setStructIntegerField(field, v)
+	case reflect.Float32, reflect.Float64:
+		field.SetFloat(v.(float64))
+	case reflect.String:
+		field.SetString(v.(string))
+	case reflect.Bool:
+		field.SetBool(v.(bool))
+	case reflect.Slice, reflect.Array:
+		arrayType := field.Type()
+		newArray, err := sliceFromBSONArray(v.(A), arrayType)
+		if err != nil {
+			return err
+		}
+		field.Set(*newArray)
+	case reflect.Map:
+		fmt.Println("v:", v)
+		newStruct, err := structFromBSONMap(v.(M), vType)
+		if err != nil {
+			return err
+		}
+		field.Set(reflect.ValueOf(newStruct).Elem())
+	default:
+		return fmt.Errorf("unhandled field type %v", field.Type())
+	}
 	return nil
 }

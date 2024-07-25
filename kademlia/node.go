@@ -25,7 +25,7 @@ type Contact struct {
 
 func NewNode(host string, port int, id *big.Int) Node {
 	if id == nil {
-		addressHash := GetHash(host + ":" + strconv.Itoa(int(port)))
+		addressHash := GetHash(host + ":" + strconv.Itoa(port))
 		id = HashToBigInt(addressHash)
 	}
 	return Node{Host: host, Port: port, Id: id}
@@ -58,6 +58,10 @@ func NewNode(host string, port int, id *big.Int) Node {
 //	return NodeFromTuple(result), nil
 //}
 
+func (n Node) ToContact() Contact {
+	return Contact{Id: n.Id.Text(16), Host: n.Host, Port: n.Port}
+}
+
 func (n Node) MarshalBSON() ([]byte, error) {
 	m := bson.M{
 		"Id":   n.Id.Text(16),
@@ -78,7 +82,7 @@ func (n *Node) UnmarshalBSON(data []byte) error {
 		return err
 	}
 	n.Host = contact.Host
-	n.Port = int(contact.Port)
+	n.Port = contact.Port
 	id, ok := new(big.Int).SetString(contact.Id, 16)
 	if !ok {
 		return fmt.Errorf("invalid id %s", contact.Id)

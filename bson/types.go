@@ -1,7 +1,5 @@
 package bson
 
-import "reflect"
-
 type Type int8
 
 const (
@@ -35,10 +33,6 @@ type BSONDouble float64
 type BSONInt int32
 type BSONLong int64
 type BSONBinData []byte
-
-type BSONNumber interface {
-	Type() reflect.Type
-}
 
 type Raw struct {
 	Type Type

@@ -122,6 +122,8 @@ func (r *Reader) ReadValue(t Type) (*Raw, error) {
 		start := r.pos
 		r.pos += 1
 		return &Raw{Bool, r.data[start:r.pos]}, nil
+	case Null:
+		return &Raw{Null, nil}, nil
 	}
 	return nil, nil
 }

@@ -295,7 +295,7 @@ func MarshalValue(v any) (Type, []byte, error) {
 	case bool:
 		return BSONBool(o).MarshalBSONValue()
 	case nil:
-		return Null, []byte{0x00}, nil
+		return Null, nil, nil
 	default:
 		t := reflect.TypeOf(v)
 		switch t.Kind() {

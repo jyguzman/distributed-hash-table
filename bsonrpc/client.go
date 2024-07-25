@@ -10,8 +10,16 @@ type Client struct {
 	conn *net.UDPConn
 }
 
-func (c Client) Call(args any, reply any) error {
-	bytes, err := bson.Marshal(args)
+type Call struct {
+	Method string
+	Args   any
+	Reply  any
+}
+
+func (c Client) Call(methodName string, args any, reply any) error {
+	call := Call{Method: methodName, Args: args, Reply: reply}
+
+	bytes, err := bson.Marshal(call)
 	if err != nil {
 		return err
 	}
@@ -34,6 +42,31 @@ func (c Client) Call(args any, reply any) error {
 
 	return nil
 }
+
+//func (c Client) Call(args any, reply any) error {
+//	bytes, err := bson.Marshal(args)
+//	if err != nil {
+//		return err
+//	}
+//
+//	_, err = c.conn.Write(bytes)
+//	if err != nil {
+//		return err
+//	}
+//
+//	buf := make([]byte, 1024)
+//	n, _, err := c.conn.ReadFromUDP(buf)
+//	if err != nil {
+//		return err
+//	}
+//
+//	err = bson.Unmarshal(buf[:n], reply)
+//	if err != nil {
+//		return err
+//	}
+//
+//	return nil
+//}
 
 func Dial(host string, port int) (*Client, error) {
 	serverAddr, err := net.ResolveUDPAddr("udp", host+":"+strconv.Itoa(port))
