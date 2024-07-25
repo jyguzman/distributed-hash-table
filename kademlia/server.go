@@ -20,7 +20,7 @@ func (s Server) Id() *big.Int {
 	return s.Node.Id
 }
 
-func NewServer(host string, port int32) (Server, error) {
+func NewServer(host string, port int) (Server, error) {
 	n := NewNode(host, port, nil)
 	s := Server{
 		Node:         n,
@@ -29,7 +29,7 @@ func NewServer(host string, port int32) (Server, error) {
 	}
 	s.updateRoutingTable(s.Node)
 
-	bsonRpcServer, err := bsonrpc.NewServer(host, int(port))
+	bsonRpcServer, err := bsonrpc.NewServer(host, port)
 	if err != nil {
 		return Server{}, err
 	}

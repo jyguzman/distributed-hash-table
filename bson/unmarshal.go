@@ -120,7 +120,6 @@ func (m *M) UnmarshalBSON(b []byte) error {
 	}
 
 	for field, val := range raw.Pairs {
-		//fmt.Println("field:", field, "val:", val)
 		var value any
 		switch val.Type {
 		case Double:
@@ -151,10 +150,8 @@ func (m *M) UnmarshalBSON(b []byte) error {
 		case Array:
 			v := new(A)
 			err = v.UnmarshalBSON(val.Data)
-			//fmt.Println("v:", v)
 			value = *v
 		}
-		//fmt.Println("value:", value)
 		(*m)[field] = value
 	}
 	return nil
@@ -318,6 +315,7 @@ func unmarshalStruct(m M, obj any) error {
 
 	for k, v := range m {
 		typ := reflect.TypeOf(v)
+		fieldTyp := rValue.Elem().FieldByName(k).Type()
 		switch typ.Kind() {
 		case reflect.Map:
 			mBytes, err := Marshal(m[k].(M))
@@ -338,10 +336,30 @@ func unmarshalStruct(m M, obj any) error {
 				return err
 			}
 			rValue.Elem().FieldByName(k).Set(*newArray)
-		case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-			reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-			reflect.Float32, reflect.Float64, reflect.String, reflect.Bool:
-			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(v))
+		case reflect.Int32:
+			switch fieldTyp.Kind() {
+			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
+				rValue.Elem().FieldByName(k).SetInt(int64(v.(int32)))
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				rValue.Elem().FieldByName(k).SetUint(uint64(v.(int32)))
+			default:
+				return fmt.Errorf("cannot marshal %T into int", v)
+			}
+		case reflect.Int64:
+			switch fieldTyp.Kind() {
+			case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
+				rValue.Elem().FieldByName(k).SetInt(v.(int64))
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+				rValue.Elem().FieldByName(k).SetUint(uint64(v.(int64)))
+			default:
+				return fmt.Errorf("cannot marshal %T into int", v)
+			}
+		case reflect.Float64:
+			rValue.Elem().FieldByName(k).SetFloat(v.(float64))
+		case reflect.String:
+			rValue.Elem().FieldByName(k).SetString(v.(string))
+		case reflect.Bool:
+			rValue.Elem().FieldByName(k).SetBool(v.(bool))
 		default:
 			return fmt.Errorf("cannot unmarshal into %T", v)
 		}
@@ -363,10 +381,14 @@ func unmarshalArray(arr A, typ reflect.Type) (*reflect.Value, error) {
 			if err != nil {
 				return nil, err
 			}
-			newA.Index(i).Set(reflect.Indirect(reflect.ValueOf(newStruct)))
+			newA.Index(i).Set(reflect.ValueOf(newStruct).Elem())
 		} else {
 			newA.Index(i).Set(reflect.ValueOf(arr[i]))
 		}
 	}
 	return &newA, nil
+}
+
+func setStructFieldValue(field reflect.Value, val any) error {
+	return nil
 }

@@ -11,7 +11,7 @@ func initServers(n int) ([]kademlia.Server, error) {
 	servers := make([]kademlia.Server, n)
 	var err error
 	for i := 0; i < len(servers); i++ {
-		servers[i], err = kademlia.NewServer("localhost", int32(8000+i))
+		servers[i], err = kademlia.NewServer("localhost", 8000+i)
 		if err != nil {
 			return nil, err
 		}
@@ -27,19 +27,19 @@ type WhoaAgain struct {
 
 type InnerInnerTest struct {
 	Eight  string
-	Nine   int64
+	Nine   int
 	Ten    []float64
 	Eleven []WhoaAgain
 }
 
 type TestInner struct {
-	Five  int64
+	Five  int8
 	Six   bool
 	Seven InnerInnerTest
 }
 
 type Test struct {
-	One   int32
+	One   int64
 	Two   float64
 	Three string
 	Four  TestInner
@@ -61,6 +61,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println(newH)
 	fmt.Println(newH.Nodes[0], reflect.TypeOf(newH.Nodes[0]))
 	whoa1 := WhoaAgain{
 		Twelve: "big bong", Thirteen: true,
@@ -95,6 +96,7 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(newT)
+	fmt.Println(bson.MarshalValue(int(50)))
 	//servers, err := initServers(10)
 	//if err != nil {
 	//	panic(err)

@@ -20,7 +20,7 @@ func (s Server) SendPing(other Server) error {
 		"q":    "Ping",
 		"id":   s.Node.Id,
 		"host": s.Node.Host,
-		"port": int32(s.Node.Port),
+		"port": s.Node.Port,
 	}
 
 	reply := bson.M{}
@@ -29,8 +29,8 @@ func (s Server) SendPing(other Server) error {
 		return err
 	}
 
-	node := NodeFromTuple(bson.A{other.Node.Host, other.Node.Port, other.Node.Id})
-	s.updateRoutingTable(node)
+	//node := NodeFromTuple(bson.A{other.Node.Host, other.Node.Port, other.Node.Id})
+	//s.updateRoutingTable(node)
 	//fmt.Println("PONG", reply)
 	return nil
 }
@@ -55,15 +55,15 @@ func (s Server) SendFindNode(key *big.Int, other Node) ([]Node, error) {
 		return nil, err
 	}
 
-	tuples := reply["nodes"].(bson.M)
+	//tuples := reply["nodes"].(bson.M)
 	var nodes []Node
-	for _, tuple := range tuples {
-		node, err := NodeFromMap(tuple.(bson.M))
-		if err != nil {
-			return nil, err
-		}
-		nodes = append(nodes, node)
-	}
+	//for _, tuple := range tuples {
+	//	node, err := NodeFromMap(tuple.(bson.M))
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	nodes = append(nodes, node)
+	//}
 	return nodes, nil
 }
 
@@ -72,6 +72,8 @@ func (s Server) SendStore(key string, val any, other Server) error {
 	if err != nil {
 		return err
 	}
+
+	//args :=
 
 	args := bson.M{
 		"q":   "Store",
@@ -90,15 +92,15 @@ func (s Server) SendStore(key string, val any, other Server) error {
 }
 
 func (s Server) Ping(callArgs bson.M, reply bson.M) error {
-	id, host, port := callArgs["id"].(string), callArgs["host"].(string), callArgs["port"].(int32)
-	ID, ok := new(big.Int).SetString(id, 16)
-	if !ok {
-		return fmt.Errorf("PONG: Invalid ID: %s", id)
-	}
-	node := NodeFromTuple(bson.A{host, port, ID})
+	//id, host, port := callArgs["id"].(string), callArgs["host"].(string), callArgs["port"].(int32)
+	//ID, ok := new(big.Int).SetString(id, 16)
+	//if !ok {
+	//	return fmt.Errorf("PONG: Invalid ID: %s", id)
+	//}
+	//node := NodeFromTuple(bson.A{host, port, ID})
 	//fmt.Printf("PING %s\n", node)
-	s.updateRoutingTable(node)
-	reply["id"] = s.Node.Id
+	//s.updateRoutingTable(node)
+	//reply["id"] = s.Node.Id
 	return nil
 }
 

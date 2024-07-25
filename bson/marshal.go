@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 )
@@ -14,6 +15,11 @@ type Marshaler interface {
 
 type ValueMarshaler interface {
 	MarshalBSONValue() (Type, []byte, error)
+}
+
+type IntValueMarshaler interface {
+	ValueMarshaler
+	Type() reflect.Type
 }
 
 func (bd BSONDouble) MarshalBSONValue() (Type, []byte, error) {
@@ -127,9 +133,68 @@ func (bb BSONBool) MarshalBSONValue() (Type, []byte, error) {
 	return Bool, buf.Bytes(), nil
 }
 
+func marshalInt(i any) (Type, []byte, error) {
+	buf := new(bytes.Buffer)
+	var err error
+	var intType Type
+	switch t := i.(type) {
+	case uint8:
+		err = binary.Write(buf, binary.LittleEndian, int32(t))
+		intType = Int
+	case uint16:
+		err = binary.Write(buf, binary.LittleEndian, int32(t))
+		intType = Int
+	case int8:
+		err = binary.Write(buf, binary.LittleEndian, int32(t))
+		intType = Int
+	case int16:
+		err = binary.Write(buf, binary.LittleEndian, int32(t))
+		intType = Int
+	case int32:
+		err = binary.Write(buf, binary.LittleEndian, t)
+		intType = Int
+	case uint:
+		if t <= math.MaxInt32 {
+			err = binary.Write(buf, binary.LittleEndian, int32(t))
+			intType = Int
+		} else {
+			err = binary.Write(buf, binary.LittleEndian, int64(t))
+			intType = Long
+		}
+	case uint32:
+		if t <= math.MaxInt32 {
+			err = binary.Write(buf, binary.LittleEndian, int32(t))
+			intType = Int
+		} else {
+			err = binary.Write(buf, binary.LittleEndian, int64(t))
+			intType = Long
+		}
+	case uint64:
+		if t <= math.MaxInt32 {
+			err = binary.Write(buf, binary.LittleEndian, int32(t))
+			intType = Int
+		} else {
+			err = binary.Write(buf, binary.LittleEndian, int64(t))
+			intType = Long
+		}
+	case int:
+		if t >= math.MinInt32 && t <= math.MaxInt32 {
+			err = binary.Write(buf, binary.LittleEndian, int32(t))
+			intType = Int
+		} else {
+			err = binary.Write(buf, binary.LittleEndian, int64(t))
+			intType = Long
+		}
+	case int64:
+		err = binary.Write(buf, binary.LittleEndian, t)
+		intType = Long
+	}
+	return intType, buf.Bytes(), err
+}
+
 func (bi BSONInt) MarshalBSONValue() (Type, []byte, error) {
 	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, int32(bi))
+	err := binary.Write(buf, binary.LittleEndian, bi)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -138,7 +203,7 @@ func (bi BSONInt) MarshalBSONValue() (Type, []byte, error) {
 
 func (bl BSONLong) MarshalBSONValue() (Type, []byte, error) {
 	buf := new(bytes.Buffer)
-	err := binary.Write(buf, binary.LittleEndian, int64(bl))
+	err := binary.Write(buf, binary.LittleEndian, bl)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -217,7 +282,11 @@ func MarshalValue(v any) (Type, []byte, error) {
 		}
 	case ValueMarshaler:
 		return o.MarshalBSONValue()
+	case uint8, uint16, uint32, int8, int16, int32, int64, int, uint:
+		return marshalInt(o)
 	case float64:
+		return BSONDouble(o).MarshalBSONValue()
+	case float32:
 		return BSONDouble(o).MarshalBSONValue()
 	case string:
 		return BSONString(o).MarshalBSONValue()
@@ -225,12 +294,8 @@ func MarshalValue(v any) (Type, []byte, error) {
 		return BSONBinData(o).MarshalBSONValue()
 	case bool:
 		return BSONBool(o).MarshalBSONValue()
-	case int32:
-		return BSONInt(o).MarshalBSONValue()
 	case nil:
 		return Null, []byte{0x00}, nil
-	case int64:
-		return BSONLong(o).MarshalBSONValue()
 	default:
 		t := reflect.TypeOf(v)
 		switch t.Kind() {

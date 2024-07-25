@@ -14,16 +14,16 @@ import (
 type Node struct {
 	Id   *big.Int
 	Host string
-	Port int32
+	Port int
 }
 
 type Contact struct {
 	Id   string
 	Host string
-	Port int32
+	Port int
 }
 
-func NewNode(host string, port int32, id *big.Int) Node {
+func NewNode(host string, port int, id *big.Int) Node {
 	if id == nil {
 		addressHash := GetHash(host + ":" + strconv.Itoa(int(port)))
 		id = HashToBigInt(addressHash)
@@ -31,32 +31,32 @@ func NewNode(host string, port int32, id *big.Int) Node {
 	return Node{Host: host, Port: port, Id: id}
 }
 
-func (n Node) ToTriple() Contact {
-	return Contact{Host: n.Host, Port: n.Port, Id: n.Id.String()}
-}
+//func (n Node) ToTriple() Contact {
+//	return Contact{Host: n.Host, Port: n.Port, Id: n.Id.String()}
+//}
 
-func NodeFromTuple(tuple bson.A) Node {
-	fmt.Println("tuple", tuple)
-	host, port, id := tuple[0].(string), tuple[1].(int32), tuple[2].(*big.Int)
-	return NewNode(host, port, id)
-}
+//func NodeFromTuple(tuple bson.A) Node {
+//	fmt.Println("tuple", tuple)
+//	host, port, id := tuple[0].(string), tuple[1].(int32), tuple[2].(*big.Int)
+//	return NewNode(host, port, id)
+//}
 
-func NodeFromMap(arrMap bson.M) (Node, error) {
-	result := bson.A(make([]any, 3))
-	for i, _ := range arrMap {
-		idx, err := strconv.Atoi(i)
-		if err != nil {
-			return Node{}, err
-		}
-		result[idx] = arrMap[i]
-	}
-	idInt, ok := new(big.Int).SetString(result[2].(string), 16)
-	if !ok {
-		return Node{}, fmt.Errorf("invalid id %s", result[2])
-	}
-	result[2] = idInt
-	return NodeFromTuple(result), nil
-}
+//func NodeFromMap(arrMap bson.M) (Node, error) {
+//	result := bson.A(make([]any, 3))
+//	for i, _ := range arrMap {
+//		idx, err := strconv.Atoi(i)
+//		if err != nil {
+//			return Node{}, err
+//		}
+//		result[idx] = arrMap[i]
+//	}
+//	idInt, ok := new(big.Int).SetString(result[2].(string), 16)
+//	if !ok {
+//		return Node{}, fmt.Errorf("invalid id %s", result[2])
+//	}
+//	result[2] = idInt
+//	return NodeFromTuple(result), nil
+//}
 
 func (n Node) MarshalBSON() ([]byte, error) {
 	m := bson.M{
@@ -78,7 +78,7 @@ func (n *Node) UnmarshalBSON(data []byte) error {
 		return err
 	}
 	n.Host = contact.Host
-	n.Port = contact.Port
+	n.Port = int(contact.Port)
 	id, ok := new(big.Int).SetString(contact.Id, 16)
 	if !ok {
 		return fmt.Errorf("invalid id %s", contact.Id)
@@ -87,9 +87,9 @@ func (n *Node) UnmarshalBSON(data []byte) error {
 	return nil
 }
 
-func (n Node) Tuple() bson.A {
-	return bson.A{n.Host, n.Port, n.Id}
-}
+//func (n Node) Tuple() bson.A {
+//	return bson.A{n.Host, n.Port, n.Id}
+//}
 
 func (n Node) String() string {
 	return fmt.Sprintf("(%s:%d %s)", n.Host, n.Port, n.Id.Text(16))
