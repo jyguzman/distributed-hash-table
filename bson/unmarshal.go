@@ -298,22 +298,22 @@ func Unmarshal(data []byte, obj any) error {
 			if err != nil {
 				return err
 			}
-			_, err = UnmarshalStruct(m, obj)
+			err = UnmarshalStruct(m, obj)
 			return nil
 		}
 		return fmt.Errorf("cannot unmarshal into %T", obj)
 	}
 }
 
-func UnmarshalStruct(m M, obj any) (any, error) {
+func UnmarshalStruct(m M, obj any) error {
 	rValue := reflect.ValueOf(obj)
 	rType := rValue.Type()
 	if rType.Kind() != reflect.Ptr {
-		return nil, fmt.Errorf("object to unmarshal into must be a pointer")
+		return fmt.Errorf("object to unmarshal into must be a pointer")
 	}
 	rIndirect := reflect.Indirect(rValue)
 	if rIndirect.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("object to unmarshal into must be a struct")
+		return fmt.Errorf("object to unmarshal into must be a struct")
 	}
 
 	for k, v := range m {
@@ -322,13 +322,13 @@ func UnmarshalStruct(m M, obj any) (any, error) {
 		case reflect.Map:
 			mBytes, err := Marshal(m[k].(M))
 			if err != nil {
-				return nil, err
+				return err
 			}
 			sfType := rValue.Elem().FieldByName(k).Type()
 			newS := reflect.New(sfType).Interface()
 			err = Unmarshal(mBytes, newS)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(newS).Elem())
 		case reflect.Array, reflect.Slice:
@@ -343,7 +343,7 @@ func UnmarshalStruct(m M, obj any) (any, error) {
 					newElem := reflect.New(elemType).Interface()
 					err = Unmarshal(arrMBytes, newElem)
 					if err != nil {
-						return nil, err
+						return err
 					}
 					newA.Index(i).Set(reflect.Indirect(reflect.ValueOf(newElem)))
 				} else {
@@ -355,7 +355,7 @@ func UnmarshalStruct(m M, obj any) (any, error) {
 			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(v))
 		}
 	}
-	return obj, nil
+	return nil
 }
 
 func unmarshalArray() error {
