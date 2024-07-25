@@ -20,9 +20,16 @@ func initServers(n int) ([]kademlia.Server, error) {
 	return servers, nil
 }
 
+type InnerInnerTest struct {
+	Eight string
+	Nine  int64
+	Ten   []float64
+}
+
 type TestInner struct {
-	Five int64
-	Six  bool
+	Five  int64
+	Six   bool
+	Seven InnerInnerTest
 }
 
 type Test struct {
@@ -49,9 +56,15 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(newH.Nodes[0], reflect.TypeOf(newH.Nodes[0]))
+	tii := InnerInnerTest{
+		Eight: "whoa",
+		Nine:  109,
+		Ten:   []float64{0.5, 4.6},
+	}
 	ti := TestInner{
-		Five: 50,
-		Six:  true,
+		Five:  50,
+		Six:   true,
+		Seven: tii,
 	}
 	t := Test{
 		One:   10,

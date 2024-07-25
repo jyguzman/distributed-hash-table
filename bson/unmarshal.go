@@ -330,12 +330,6 @@ func UnmarshalStruct(m M, obj any) (any, error) {
 			if err != nil {
 				return nil, err
 			}
-			//newS := reflect.New(sfType)
-			//inV, err := UnmarshalStruct(m[k].(M), newS.Interface())
-			//if err != nil {
-			//	return nil, err
-			//}
-			//rValue.Elem().FieldByName(k).Set(reflect.ValueOf(inV).Elem())
 			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(newS).Elem())
 		case reflect.Array, reflect.Slice:
 			aType := rValue.Elem().FieldByName(k).Type()
