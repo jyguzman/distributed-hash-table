@@ -17,7 +17,7 @@ type Server struct {
 }
 
 func (s Server) Id() *big.Int {
-	return s.Node.ID
+	return s.Node.Id
 }
 
 func NewServer(host string, port int32) (Server, error) {
@@ -56,7 +56,7 @@ func (s Server) Prefixes() map[string]*KBucket {
 
 func (s Server) Bootstrap(servers ...Server) {
 	for _, server := range servers {
-		if server.Node.ID != s.Node.ID {
+		if server.Node.Id != s.Node.Id {
 			fmt.Println(s.SendPing(server))
 		}
 	}

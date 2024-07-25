@@ -113,7 +113,7 @@ func (s Server) FindValueTcp(other Server, key string) ([]Node, error) {
 		Key:    HashToBigInt(GetHash(key)),
 	}
 	keyHash := GetHash(key)
-	xor := new(big.Int).Xor(other.Node.ID, HashToBigInt(keyHash))
+	xor := new(big.Int).Xor(other.Node.Id, HashToBigInt(keyHash))
 	fmt.Println(args, xor, client)
 	return []Node{}, nil
 }

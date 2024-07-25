@@ -37,93 +37,17 @@ func main() {
 	}
 	n := kademlia.NewNode("localhost", 8000, nil)
 	n2 := kademlia.NewNode("localhost", 8001, nil)
-	//nodeArr := []kademlia.Node{n, n2}
-	type Contact struct {
-		Id   string
-		Host string
-		Port int32
-	}
-	type Contacts struct {
-		Contacts []Contact
-	}
-	//c1 := Contact{"idOne", "localhost", 8000}
-	//c2 := Contact{"idTwo", "localhost", 8001}
-	//c3 := Contact{"idThree", "localhost", 8002}
-	//contacts := Contacts{[]Contact{c1, c2, c3}}
-	//bBytes, err := bson.Marshal(contacts)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//bm := bson.M{}
-	//err = bson.Unmarshal(bBytes, &bm)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("bm:", bm)
-	//var nc Contacts
-	//_, err = bson.UnmarshalStruct(bm, &nc)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("nc:", nc)
 	h := Holder{[]kademlia.Node{n, n2}}
 	hBytes, err := bson.Marshal(h)
 	if err != nil {
 		panic(err)
 	}
-	hm := bson.M{}
-	err = bson.Unmarshal(hBytes, &hm)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("hm:", hm)
 	var t Holder
-	_, err = bson.UnmarshalStruct(hm, &t)
+	err = bson.Unmarshal(hBytes, &t)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(t)
-	//fmt.Println(reflect.TypeOf(newA["array"].(bson.A)[2]))
-	//for _, elem := range a {
-	//	fmt.Println("elem:", elem)
-	//}
-	//m := bson.M{
-	//	"hello":  5.10,
-	//	"number": 2.5,
-	//	"inner": &bson.M{
-	//		"one": 1.5,
-	//	},
-	//	"this": 10.0,
-	//}
-	//mBytes, err := bson.Marshal(m)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println(mBytes)
-	////fmt.Println(mBytes)
-	//n := &bson.M{}
-	//err = n.UnmarshalBSON(mBytes)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println(*n)
-	//r := bson.NewReader(mBytes)
-	//s, err := r.ReadDocument()
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("s:", *s)
-	//raw := s.Pairs["inner"]
-	////p, err := bson.Marshal(raw.Data)
-	////if err != nil {
-	////	panic(err)
-	////}
-	//newR := bson.NewReader(raw.Data)
-	//sRawD, err := newR.ReadDocument()
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("sRawD:", *sRawD)
 	//servers, err := initServers(10)
 	//if err != nil {
 	//	panic(err)

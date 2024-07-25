@@ -12,7 +12,7 @@ import (
 )
 
 type Node struct {
-	ID   *big.Int
+	Id   *big.Int
 	Host string
 	Port int32
 }
@@ -28,16 +28,11 @@ func NewNode(host string, port int32, id *big.Int) Node {
 		addressHash := GetHash(host + ":" + strconv.Itoa(int(port)))
 		id = HashToBigInt(addressHash)
 	}
-	return Node{Host: host, Port: port, ID: id}
+	return Node{Host: host, Port: port, Id: id}
 }
 
 func (n Node) ToTriple() Contact {
-	return Contact{Host: n.Host, Port: n.Port, Id: n.ID.String()}
-}
-
-func FromContact(contact Contact) Node {
-	id, _ := new(big.Int).SetString(contact.Id, 16)
-	return Node{ID: id, Host: contact.Host, Port: contact.Port}
+	return Contact{Host: n.Host, Port: n.Port, Id: n.Id.String()}
 }
 
 func NodeFromTuple(tuple bson.A) Node {
@@ -70,7 +65,7 @@ func NodeFromMap(arrMap bson.M) (Node, error) {
 
 func (n Node) MarshalBSON() ([]byte, error) {
 	m := bson.M{
-		"Id":   n.ID.Text(16),
+		"Id":   n.Id.Text(16),
 		"Host": n.Host,
 		"Port": n.Port,
 	}
@@ -87,33 +82,32 @@ func (n *Node) UnmarshalBSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("contact", contact)
 	n.Host = contact.Host
 	n.Port = contact.Port
 	id, ok := new(big.Int).SetString(contact.Id, 16)
 	if !ok {
 		return fmt.Errorf("invalid id %s", contact.Id)
 	}
-	n.ID = id
+	n.Id = id
 	return nil
 }
 
 func (n Node) Tuple() bson.A {
-	return bson.A{n.Host, n.Port, n.ID}
+	return bson.A{n.Host, n.Port, n.Id}
 }
 
 func (n Node) String() string {
-	return fmt.Sprintf("(%s:%d %s)", n.Host, n.Port, n.ID.Text(16))
+	return fmt.Sprintf("(%s:%d %s)", n.Host, n.Port, n.Id.Text(16))
 }
 
 func (n Node) Xor(other Node) *big.Int {
-	return new(big.Int).Xor(n.ID, other.ID)
+	return new(big.Int).Xor(n.Id, other.Id)
 }
 
 func (n Node) Prefix(length int) string {
 	pre := ""
 	for i := 0; i < length; i++ {
-		pre += strconv.Itoa(int(n.ID.Bit(i)))
+		pre += strconv.Itoa(int(n.Id.Bit(i)))
 	}
 	return pre
 }

@@ -18,7 +18,7 @@ func (s Server) SendPing(other Server) error {
 
 	args := bson.M{
 		"q":    "Ping",
-		"id":   s.Node.ID,
+		"id":   s.Node.Id,
 		"host": s.Node.Host,
 		"port": int32(s.Node.Port),
 	}
@@ -29,7 +29,7 @@ func (s Server) SendPing(other Server) error {
 		return err
 	}
 
-	node := NodeFromTuple(bson.A{other.Node.Host, other.Node.Port, other.Node.ID})
+	node := NodeFromTuple(bson.A{other.Node.Host, other.Node.Port, other.Node.Id})
 	s.updateRoutingTable(node)
 	//fmt.Println("PONG", reply)
 	return nil
@@ -43,7 +43,7 @@ func (s Server) SendFindNode(key *big.Int, other Node) ([]Node, error) {
 
 	args := bson.M{
 		"q":    "FindNode",
-		"id":   s.Node.ID,
+		"id":   s.Node.Id,
 		"host": s.Node.Host,
 		"port": s.Node.Port,
 		"key":  key,
@@ -75,7 +75,7 @@ func (s Server) SendStore(key string, val any, other Server) error {
 
 	args := bson.M{
 		"q":   "Store",
-		"id":  s.Node.ID,
+		"id":  s.Node.Id,
 		"key": key,
 		"val": val,
 	}
@@ -98,7 +98,7 @@ func (s Server) Ping(callArgs bson.M, reply bson.M) error {
 	node := NodeFromTuple(bson.A{host, port, ID})
 	//fmt.Printf("PING %s\n", node)
 	s.updateRoutingTable(node)
-	reply["id"] = s.Node.ID
+	reply["id"] = s.Node.Id
 	return nil
 }
 

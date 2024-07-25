@@ -56,7 +56,7 @@ func (rn *RTNode) Split(prefixes map[string]*KBucket) {
 	zeroBucket, oneBucket := NewKBucket(prfx+"0"), NewKBucket(prfx+"1")
 	ptr, pLen := rn.Bucket.Head, len(prfx)
 	for ptr != nil {
-		currId := ptr.Node.ID
+		currId := ptr.Node.Id
 		bit := currId.Bit(pLen)
 		if bit == 0 {
 			zeroBucket.Add(ptr.Node)
@@ -89,7 +89,7 @@ func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]*KBucket) int 
 			rn.Add(currPos, node, prefixes)
 		}
 	} else {
-		bit := node.ID.Bit(currPos)
+		bit := node.Id.Bit(currPos)
 		if bit == 0 {
 			rn.Left.Add(currPos+1, node, prefixes)
 		} else {
@@ -132,7 +132,7 @@ func (rt *RoutingTable) GetNearest(key *big.Int) []Node {
 	for _, bucket := range rt.BucketPrefixes {
 		ptr := bucket.Head
 		for ptr != nil {
-			if ptr.Node.ID.Cmp(key) != 0 {
+			if ptr.Node.Id.Cmp(key) != 0 {
 				heap.Push(nodeHeap, ptr.Node)
 			}
 			ptr = ptr.Next

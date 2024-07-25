@@ -12,8 +12,8 @@ type NodeHeap struct {
 func (h *NodeHeap) Len() int { return len(h.Nodes) }
 
 func (h *NodeHeap) Less(i, j int) bool {
-	first := new(big.Int).Xor(h.Key, h.Nodes[i].ID)
-	second := new(big.Int).Xor(h.Key, h.Nodes[j].ID)
+	first := new(big.Int).Xor(h.Key, h.Nodes[i].Id)
+	second := new(big.Int).Xor(h.Key, h.Nodes[j].Id)
 	return first.Cmp(second) == -1
 }
 func (h *NodeHeap) Swap(i, j int) { h.Nodes[i], h.Nodes[j] = h.Nodes[j], h.Nodes[i] }

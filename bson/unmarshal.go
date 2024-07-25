@@ -298,7 +298,6 @@ func Unmarshal(data []byte, obj any) error {
 			if err != nil {
 				return err
 			}
-			fmt.Println("m:", m)
 			_, err = UnmarshalStruct(m, obj)
 			return nil
 		}
@@ -319,7 +318,6 @@ func UnmarshalStruct(m M, obj any) (any, error) {
 
 	for k, v := range m {
 		typ := reflect.TypeOf(v)
-		//fmt.Println("typ:", typ)
 		switch typ.Kind() {
 		case reflect.Map:
 			sf := rValue.Elem().FieldByName(k)
@@ -331,27 +329,20 @@ func UnmarshalStruct(m M, obj any) (any, error) {
 			}
 			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(inV).Elem())
 		case reflect.Array, reflect.Slice:
-			af := rValue.Elem().FieldByName(k)
-			afType := af.Type()
+			a := rValue.Elem().FieldByName(k)
+			aType := a.Type()
 			arr := v.(A)
-			newA := reflect.MakeSlice(afType, len(arr), len(arr))
+			newA := reflect.MakeSlice(aType, len(arr), len(arr))
 			elemType := reflect.TypeOf(newA.Index(0).Interface())
 			for i := 0; i < newA.Len(); i++ {
 				arrElemType := reflect.TypeOf(arr[i])
 				if arrElemType.Kind() == reflect.Map {
 					newElem := reflect.New(elemType).Interface()
-					fmt.Println("arr m:", arr[i].(M))
 					arrMBytes, err := Marshal(arr[i].(M))
-					//fmt.Println("arr bytes", arrMBytes)
 					err = Unmarshal(arrMBytes, newElem)
 					if err != nil {
 						return nil, err
 					}
-					fmt.Println("newelem:", newElem)
-					//elem, err := UnmarshalStruct(arr[i].(M), newElem)
-					//if err != nil {
-					//	return nil, err
-					//}
 					newA.Index(i).Set(reflect.Indirect(reflect.ValueOf(newElem)))
 				} else {
 					newA.Index(i).Set(reflect.ValueOf(arr[i]))
@@ -361,36 +352,10 @@ func UnmarshalStruct(m M, obj any) (any, error) {
 		default:
 			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(v))
 		}
-		//if typ.Kind() != reflect.Map {
-		//	rValue.Elem().FieldByName(k).Set(reflect.ValueOf(v))
-		//} else {
-		//	sf := rValue.Elem().FieldByName(k)
-		//	sfType := sf.Type()
-		//	newS := reflect.New(sfType)
-		//	inV, err := UnmarshalStruct(m[k].(M), newS.Interface())
-		//	if err != nil {
-		//		return nil, err
-		//	}
-		//	rValue.Elem().FieldByName(k).Set(reflect.ValueOf(inV).Elem())
-		//}
 	}
 	return obj, nil
 }
 
-//func initStruct(s reflect.Value) error {
-//	for i := 0; i < s.NumField(); i++ {
-//		f := s.Field(i)
-//		fType := f.Type()
-//		switch fType.Kind() {
-//		case reflect.Struct:
-//			err := initStruct(f)
-//			if err != nil {
-//				return err
-//			}
-//		case reflect.Int64:
-//			f.SetInt()
-//		default:
-//			return fmt.Errorf("unhandled default field %T", f)
-//		}
-//	}
-//}
+func unmarshalArray() error {
+	return nil
+}
