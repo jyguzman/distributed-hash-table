@@ -337,8 +337,7 @@ func UnmarshalStruct(m M, obj any) error {
 			newA := reflect.MakeSlice(aType, len(arr), len(arr))
 			elemType := reflect.TypeOf(newA.Index(0).Interface())
 			for i := 0; i < newA.Len(); i++ {
-				arrElemType := reflect.TypeOf(arr[i])
-				if arrElemType.Kind() == reflect.Map {
+				if reflect.TypeOf(arr[i]).Kind() == reflect.Map {
 					arrMBytes, err := Marshal(arr[i].(M))
 					newElem := reflect.New(elemType).Interface()
 					err = Unmarshal(arrMBytes, newElem)
