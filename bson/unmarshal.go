@@ -320,14 +320,23 @@ func UnmarshalStruct(m M, obj any) (any, error) {
 		typ := reflect.TypeOf(v)
 		switch typ.Kind() {
 		case reflect.Map:
-			sf := rValue.Elem().FieldByName(k)
-			sfType := sf.Type()
-			newS := reflect.New(sfType)
-			inV, err := UnmarshalStruct(m[k].(M), newS.Interface())
+			mBytes, err := Marshal(m[k].(M))
 			if err != nil {
 				return nil, err
 			}
-			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(inV).Elem())
+			sfType := rValue.Elem().FieldByName(k).Type()
+			newS := reflect.New(sfType).Interface()
+			err = Unmarshal(mBytes, newS)
+			if err != nil {
+				return nil, err
+			}
+			//newS := reflect.New(sfType)
+			//inV, err := UnmarshalStruct(m[k].(M), newS.Interface())
+			//if err != nil {
+			//	return nil, err
+			//}
+			//rValue.Elem().FieldByName(k).Set(reflect.ValueOf(inV).Elem())
+			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(newS).Elem())
 		case reflect.Array, reflect.Slice:
 			aType := rValue.Elem().FieldByName(k).Type()
 			arr := v.(A)

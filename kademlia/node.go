@@ -58,11 +58,6 @@ func NodeFromMap(arrMap bson.M) (Node, error) {
 	return NodeFromTuple(result), nil
 }
 
-//func (x *big.Int) MarshalBSONValue() (Type, []byte, error) {
-//	str := x.Text(16)
-//	return bson.BSONString(str).MarshalBSONValue()
-//}
-
 func (n Node) MarshalBSON() ([]byte, error) {
 	m := bson.M{
 		"Id":   n.Id.Text(16),

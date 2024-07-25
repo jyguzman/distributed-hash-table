@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go-dht/bson"
 	"go-dht/kademlia"
+	"reflect"
 )
 
 func initServers(n int) ([]kademlia.Server, error) {
@@ -42,12 +43,32 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	var t Holder
-	err = bson.Unmarshal(hBytes, &t)
+	var newH Holder
+	err = bson.Unmarshal(hBytes, &newH)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(t)
+	fmt.Println(newH.Nodes[0], reflect.TypeOf(newH.Nodes[0]))
+	ti := TestInner{
+		Five: 50,
+		Six:  true,
+	}
+	t := Test{
+		One:   10,
+		Two:   50.5,
+		Three: "hello",
+		Four:  ti,
+	}
+	tBytes, err := bson.Marshal(t)
+	if err != nil {
+		panic(err)
+	}
+	var newT Test
+	err = bson.Unmarshal(tBytes, &newT)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(newT)
 	//servers, err := initServers(10)
 	//if err != nil {
 	//	panic(err)
