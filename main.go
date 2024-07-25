@@ -20,10 +20,16 @@ func initServers(n int) ([]kademlia.Server, error) {
 	return servers, nil
 }
 
+type WhoaAgain struct {
+	Twelve   string
+	Thirteen bool
+}
+
 type InnerInnerTest struct {
-	Eight string
-	Nine  int64
-	Ten   []float64
+	Eight  string
+	Nine   int64
+	Ten    []float64
+	Eleven []WhoaAgain
 }
 
 type TestInner struct {
@@ -56,10 +62,17 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(newH.Nodes[0], reflect.TypeOf(newH.Nodes[0]))
+	whoa1 := WhoaAgain{
+		Twelve: "big bong", Thirteen: true,
+	}
+	whoa2 := WhoaAgain{
+		Twelve: "small bong", Thirteen: false,
+	}
 	tii := InnerInnerTest{
-		Eight: "whoa",
-		Nine:  109,
-		Ten:   []float64{0.5, 4.6},
+		Eight:  "whoa",
+		Nine:   109,
+		Ten:    []float64{0.5, 4.6},
+		Eleven: []WhoaAgain{whoa1, whoa2},
 	}
 	ti := TestInner{
 		Five:  50,

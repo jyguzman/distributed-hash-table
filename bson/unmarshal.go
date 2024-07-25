@@ -298,14 +298,14 @@ func Unmarshal(data []byte, obj any) error {
 			if err != nil {
 				return err
 			}
-			err = UnmarshalStruct(m, obj)
+			err = unmarshalStruct(m, obj)
 			return nil
 		}
 		return fmt.Errorf("cannot unmarshal into %T", obj)
 	}
 }
 
-func UnmarshalStruct(m M, obj any) error {
+func unmarshalStruct(m M, obj any) error {
 	rValue := reflect.ValueOf(obj)
 	rType := rValue.Type()
 	if rType.Kind() != reflect.Ptr {
@@ -325,38 +325,48 @@ func UnmarshalStruct(m M, obj any) error {
 				return err
 			}
 			sfType := rValue.Elem().FieldByName(k).Type()
-			newS := reflect.New(sfType).Interface()
-			err = Unmarshal(mBytes, newS)
+			newStruct := reflect.New(sfType).Interface()
+			err = Unmarshal(mBytes, newStruct)
 			if err != nil {
 				return err
 			}
-			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(newS).Elem())
+			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(newStruct).Elem())
 		case reflect.Array, reflect.Slice:
-			aType := rValue.Elem().FieldByName(k).Type()
-			arr := v.(A)
-			newA := reflect.MakeSlice(aType, len(arr), len(arr))
-			elemType := reflect.TypeOf(newA.Index(0).Interface())
-			for i := 0; i < newA.Len(); i++ {
-				if reflect.TypeOf(arr[i]).Kind() == reflect.Map {
-					arrMBytes, err := Marshal(arr[i].(M))
-					newElem := reflect.New(elemType).Interface()
-					err = Unmarshal(arrMBytes, newElem)
-					if err != nil {
-						return err
-					}
-					newA.Index(i).Set(reflect.Indirect(reflect.ValueOf(newElem)))
-				} else {
-					newA.Index(i).Set(reflect.ValueOf(arr[i]))
-				}
+			arrayType := rValue.Elem().FieldByName(k).Type()
+			newArray, err := unmarshalArray(v.(A), arrayType)
+			if err != nil {
+				return err
 			}
-			rValue.Elem().FieldByName(k).Set(newA)
-		default:
+			rValue.Elem().FieldByName(k).Set(*newArray)
+		case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+			reflect.Float32, reflect.Float64, reflect.String, reflect.Bool:
 			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(v))
+		default:
+			return fmt.Errorf("cannot unmarshal into %T", v)
 		}
 	}
 	return nil
 }
 
-func unmarshalArray() error {
-	return nil
+func unmarshalArray(arr A, typ reflect.Type) (*reflect.Value, error) {
+	newA := reflect.MakeSlice(typ, len(arr), len(arr))
+	elemType := reflect.TypeOf(newA.Index(0).Interface())
+	for i := 0; i < newA.Len(); i++ {
+		if reflect.TypeOf(arr[i]).Kind() == reflect.Map {
+			arrMBytes, err := Marshal(arr[i].(M))
+			if err != nil {
+				return nil, err
+			}
+			newStruct := reflect.New(elemType).Interface()
+			err = Unmarshal(arrMBytes, newStruct)
+			if err != nil {
+				return nil, err
+			}
+			newA.Index(i).Set(reflect.Indirect(reflect.ValueOf(newStruct)))
+		} else {
+			newA.Index(i).Set(reflect.ValueOf(arr[i]))
+		}
+	}
+	return &newA, nil
 }
