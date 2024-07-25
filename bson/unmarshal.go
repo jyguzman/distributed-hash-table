@@ -329,16 +329,15 @@ func UnmarshalStruct(m M, obj any) (any, error) {
 			}
 			rValue.Elem().FieldByName(k).Set(reflect.ValueOf(inV).Elem())
 		case reflect.Array, reflect.Slice:
-			a := rValue.Elem().FieldByName(k)
-			aType := a.Type()
+			aType := rValue.Elem().FieldByName(k).Type()
 			arr := v.(A)
 			newA := reflect.MakeSlice(aType, len(arr), len(arr))
 			elemType := reflect.TypeOf(newA.Index(0).Interface())
 			for i := 0; i < newA.Len(); i++ {
 				arrElemType := reflect.TypeOf(arr[i])
 				if arrElemType.Kind() == reflect.Map {
-					newElem := reflect.New(elemType).Interface()
 					arrMBytes, err := Marshal(arr[i].(M))
+					newElem := reflect.New(elemType).Interface()
 					err = Unmarshal(arrMBytes, newElem)
 					if err != nil {
 						return nil, err

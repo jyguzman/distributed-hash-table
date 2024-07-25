@@ -34,7 +34,6 @@ func (r *Reader) ReadDocument() (*RawD, error) {
 		}
 		raw.Pairs[field.Name] = rawVal
 	}
-	//fmt.Println("pairs:", raw.Pairs)
 
 	return raw, nil
 }
@@ -60,7 +59,6 @@ func (r *Reader) ReadArray() (*RawArray, error) {
 		}
 		raw = append(raw, rawVal)
 	}
-	//fmt.Println("raw", raw)
 
 	return &raw, nil
 }
