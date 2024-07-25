@@ -32,88 +32,53 @@ type Test struct {
 }
 
 func main() {
-	//m := bson.M{
-	//	"hello": "world",
-	//	"inner": bson.D{
-	//		{"three", 5.0},
-	//	},
-	//	"array": bson.A{
-	//		"hello", "world", bson.D{
-	//			{"yes", "sir"},
-	//		},
-	//	},
-	//}
-	//aBytes, err := bson.Marshal(m)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println(aBytes)
-	//newA := bson.D{}
-	//err = bson.UnmarshalValue(bson.Object, aBytes, &newA)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("newA:", newA)
-	//sBytes, err := bson.Marshal(bson.BSONString("hello, world"))
-	//if err != nil {
-	//	panic(err)
-	//}
-	//var s string
-	//err = bson.Unmarshal(sBytes, &s)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println("s:", s)
-	//m := bson.M{
-	//	"hello": "world",
-	//	"inner": bson.D{
-	//		{"three", 5.0},
-	//	},
-	//	"array": bson.A{
-	//		"hello", "world", bson.D{
-	//			{"yes", "sir"},
-	//		},
-	//	},
-	//}
 	type Holder struct {
 		Nodes []kademlia.Node
 	}
 	n := kademlia.NewNode("localhost", 8000, nil)
 	n2 := kademlia.NewNode("localhost", 8001, nil)
-	//arr := []kademlia.Node{n, n2}
-	//h := Holder{arr}
-	//ti := TestInner{Five: 100, Six: true}
-	//t := Test{One: 5, Two: 10.0, Three: "hello, world", Four: ti}
-	//tBytes, err := bson.Marshal(h)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//fmt.Println(tBytes)
-	//var nodes kademlia.Node
-	//nodes := bson.A{}
-	//var nodes Holder
-	//err = bson.Unmarshal(tBytes, &nodes)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//fmt.Println(nodes)
-	//m := bson.M{
-	//	"One":   int32(5),
-	//	"Two":   5.5,
-	//	"Three": "bing",
-	//	"Four": bson.M{
-	//		"Five": int64(100),
-	//		"Six":  true,
-	//	},
-	//}
-	m := bson.M{
-		"Nodes": bson.A{
-			n, n2,
-		},
+	//nodeArr := []kademlia.Node{n, n2}
+	type Contact struct {
+		Id   string
+		Host string
+		Port int32
 	}
+	type Contacts struct {
+		Contacts []Contact
+	}
+	//c1 := Contact{"idOne", "localhost", 8000}
+	//c2 := Contact{"idTwo", "localhost", 8001}
+	//c3 := Contact{"idThree", "localhost", 8002}
+	//contacts := Contacts{[]Contact{c1, c2, c3}}
+	//bBytes, err := bson.Marshal(contacts)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//bm := bson.M{}
+	//err = bson.Unmarshal(bBytes, &bm)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("bm:", bm)
+	//var nc Contacts
+	//_, err = bson.UnmarshalStruct(bm, &nc)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println("nc:", nc)
+	h := Holder{[]kademlia.Node{n, n2}}
+	hBytes, err := bson.Marshal(h)
+	if err != nil {
+		panic(err)
+	}
+	hm := bson.M{}
+	err = bson.Unmarshal(hBytes, &hm)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("hm:", hm)
 	var t Holder
-	_, err := bson.UnmarshalStruct(m, &t)
+	_, err = bson.UnmarshalStruct(hm, &t)
 	if err != nil {
 		panic(err)
 	}

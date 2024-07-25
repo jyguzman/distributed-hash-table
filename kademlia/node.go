@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"go-dht/bson"
 	"log"
@@ -64,11 +63,16 @@ func NodeFromMap(arrMap bson.M) (Node, error) {
 	return NodeFromTuple(result), nil
 }
 
+//func (x *big.Int) MarshalBSONValue() (Type, []byte, error) {
+//	str := x.Text(16)
+//	return bson.BSONString(str).MarshalBSONValue()
+//}
+
 func (n Node) MarshalBSON() ([]byte, error) {
 	m := bson.M{
-		"id":   n.ID.Text(16),
-		"host": n.Host,
-		"port": n.Port,
+		"Id":   n.ID.Text(16),
+		"Host": n.Host,
+		"Port": n.Port,
 	}
 	data, err := bson.Marshal(m)
 	if err != nil {
@@ -78,25 +82,19 @@ func (n Node) MarshalBSON() ([]byte, error) {
 }
 
 func (n *Node) UnmarshalBSON(data []byte) error {
-	m := bson.M{}
-	err := bson.Unmarshal(data, &m)
+	var contact Contact
+	err := bson.Unmarshal(data, &contact)
 	if err != nil {
 		return err
 	}
-	idStr := m["id"].(string)
-	id, ok := new(big.Int).SetString(idStr, 16)
+	fmt.Println("contact", contact)
+	n.Host = contact.Host
+	n.Port = contact.Port
+	id, ok := new(big.Int).SetString(contact.Id, 16)
 	if !ok {
-		return fmt.Errorf("invalid id %s", idStr)
+		return fmt.Errorf("invalid id %s", contact.Id)
 	}
-	m["id"] = id
-	mBytes, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(mBytes, n)
-	if err != nil {
-		return err
-	}
+	n.ID = id
 	return nil
 }
 

@@ -3,7 +3,6 @@ package bson
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"reflect"
 )
@@ -121,6 +120,7 @@ func (m *M) UnmarshalBSON(b []byte) error {
 	}
 
 	for field, val := range raw.Pairs {
+		//fmt.Println("field:", field, "val:", val)
 		var value any
 		switch val.Type {
 		case Double:
@@ -150,9 +150,11 @@ func (m *M) UnmarshalBSON(b []byte) error {
 		case Null:
 		case Array:
 			v := new(A)
-			err = v.UnmarshalWithParent(val.Data, m)
+			err = v.UnmarshalBSON(val.Data)
+			//fmt.Println("v:", v)
 			value = *v
 		}
+		//fmt.Println("value:", value)
 		(*m)[field] = value
 	}
 	return nil
@@ -255,7 +257,6 @@ func (a *A) UnmarshalBSON(b []byte) error {
 			err = UnmarshalValue(val.Type, val.Data, v)
 			value = *v
 		}
-
 		if err != nil {
 			return err
 		}
@@ -297,14 +298,8 @@ func Unmarshal(data []byte, obj any) error {
 			if err != nil {
 				return err
 			}
-			mBytes, err := json.Marshal(m)
-			if err != nil {
-				return err
-			}
-			err = json.Unmarshal(mBytes, obj)
-			if err != nil {
-				return err
-			}
+			fmt.Println("m:", m)
+			_, err = UnmarshalStruct(m, obj)
 			return nil
 		}
 		return fmt.Errorf("cannot unmarshal into %T", obj)
@@ -324,6 +319,7 @@ func UnmarshalStruct(m M, obj any) (any, error) {
 
 	for k, v := range m {
 		typ := reflect.TypeOf(v)
+		//fmt.Println("typ:", typ)
 		switch typ.Kind() {
 		case reflect.Map:
 			sf := rValue.Elem().FieldByName(k)
@@ -339,8 +335,27 @@ func UnmarshalStruct(m M, obj any) (any, error) {
 			afType := af.Type()
 			arr := v.(A)
 			newA := reflect.MakeSlice(afType, len(arr), len(arr))
+			elemType := reflect.TypeOf(newA.Index(0).Interface())
 			for i := 0; i < newA.Len(); i++ {
-				newA.Index(i).Set(reflect.ValueOf(arr[i]))
+				arrElemType := reflect.TypeOf(arr[i])
+				if arrElemType.Kind() == reflect.Map {
+					newElem := reflect.New(elemType).Interface()
+					fmt.Println("arr m:", arr[i].(M))
+					arrMBytes, err := Marshal(arr[i].(M))
+					//fmt.Println("arr bytes", arrMBytes)
+					err = Unmarshal(arrMBytes, newElem)
+					if err != nil {
+						return nil, err
+					}
+					fmt.Println("newelem:", newElem)
+					//elem, err := UnmarshalStruct(arr[i].(M), newElem)
+					//if err != nil {
+					//	return nil, err
+					//}
+					newA.Index(i).Set(reflect.Indirect(reflect.ValueOf(newElem)))
+				} else {
+					newA.Index(i).Set(reflect.ValueOf(arr[i]))
+				}
 			}
 			rValue.Elem().FieldByName(k).Set(newA)
 		default:

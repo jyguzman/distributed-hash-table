@@ -209,7 +209,12 @@ func MarshalValue(v any) (Type, []byte, error) {
 		if err != nil {
 			return 0, nil, err
 		}
-		return Object, data, nil
+		switch o.(type) {
+		case A:
+			return Array, data, nil
+		default:
+			return Object, data, nil
+		}
 	case ValueMarshaler:
 		return o.MarshalBSONValue()
 	case float64:
