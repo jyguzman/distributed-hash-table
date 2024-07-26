@@ -375,7 +375,12 @@ func marshalStruct(s any) (Type, []byte, error) {
 	innerBuf := new(bytes.Buffer)
 	for i := 0; i < rType.NumField(); i++ {
 		fieldName := rType.Field(i).Name
+		fieldType := rValue.Field(i).Type()
 		fieldValue := rValue.Field(i).Interface()
+		fieldValType := reflect.TypeOf(fieldValue)
+		if fieldType.Kind() == reflect.Interface {
+			TypeRegistry[rType.Name()+"."+fieldName] = fieldValType
+		}
 		pairBytes, err := Pair{Key: fieldName, Val: fieldValue}.MarshalBSON()
 		if err != nil {
 			return 0, nil, err

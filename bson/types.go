@@ -1,5 +1,7 @@
 package bson
 
+import "reflect"
+
 type Type int8
 
 const (
@@ -45,3 +47,10 @@ type RawD struct {
 }
 
 type RawArray []*Raw
+
+type Field struct {
+	Type reflect.Type
+	Kind reflect.Kind
+}
+
+var TypeRegistry = map[string]reflect.Type{}

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"go-dht/bson"
 	"go-dht/kademlia"
 )
 
@@ -95,68 +93,89 @@ func main() {
 	//	panic(err)
 	//}
 	//fmt.Println(newT)
-	type InnerThing struct {
-		ArgTen string
-	}
-	type Thing struct {
-		ArgEight float32
-		ArgNine  InnerThing
-	}
-	type Args struct {
-		ArgOne   string
-		ArgTwo   any
-		ArgThree any
-		ArgFour  any
-		ArgFive  uint32
-		ArgSix   any
-		ArgSeven any
-	}
-	args := Args{
-		ArgOne: "hello",
-		ArgTwo: uint(8),
-		ArgThree: WhoaAgain{
-			Twelve:   "hello",
-			Thirteen: false,
-		},
-		ArgFour: []any{1.0, 100, "hello"},
-		ArgFive: 80,
-		ArgSix:  1.75,
-		ArgSeven: Thing{
-			ArgEight: 10.9,
-			ArgNine:  InnerThing{ArgTen: "world"},
-		},
-	}
-	//args := Thing{
-	//	ArgEight: 10.5,
-	//	ArgNine: InnerThing{
-	//		ArgTen: "hello, world",
+	//type InnerInnerInnerThing struct {
+	//	ArgFourteen any
+	//}
+	//type InnerInnerThing struct {
+	//	ArgTwelve   string
+	//	ArgThirteen any
+	//}
+	//type InnerThing struct {
+	//	ArgTen    string
+	//	ArgEleven any
+	//}
+	//type Thing struct {
+	//	ArgEight float32
+	//	ArgNine  InnerThing
+	//}
+	//type Args struct {
+	//	ArgOne   string
+	//	ArgTwo   any
+	//	ArgThree any
+	//	ArgFour  any
+	//	ArgFive  uint32
+	//	ArgSix   any
+	//	ArgSeven any
+	//}
+	//args := Args{
+	//	ArgOne: "hello",
+	//	ArgTwo: uint(8),
+	//	ArgThree: WhoaAgain{
+	//		Twelve:   "hello",
+	//		Thirteen: false,
+	//	},
+	//	ArgFour: []any{1.0, 100, "hello"},
+	//	ArgFive: 80,
+	//	ArgSix:  1.75,
+	//	ArgSeven: Thing{
+	//		ArgEight: 10.9,
+	//		ArgNine: InnerThing{
+	//			ArgTen:    "world",
+	//			ArgEleven: "bong",
+	//		},
 	//	},
 	//}
-	argsBytes, _ := bson.Marshal(args)
-	fmt.Println(argsBytes)
-
-	var t Args
-	err := bson.Unmarshal(argsBytes, &t)
+	//argsBytes, _ := bson.Marshal(args)
+	//fmt.Println(argsBytes)
+	//
+	//var t Args
+	//err := bson.Unmarshal(argsBytes, &t)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println(t)
+	//m := bson.M{
+	//	"One": 1,
+	//	"Two": "two",
+	//	"Three": bson.M{
+	//		"Four": 4.0,
+	//		"Five": bson.M{
+	//			"Six": true,
+	//		},
+	//	},
+	//}
+	//sf, err := bson.StructFieldsFromBSONMap(m)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println(sf, reflect.TypeOf(sf))
+	//fmt.Println(reflect.StructOf(sf))
+	servers, err := initServers(2)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(t)
-	//servers, err := initServers(2)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//n := servers[0].Node
-	//err = servers[0].SendPing(servers[1])
-	//if err != nil {
-	//	panic(err)
-	//}
-	//type CallArgs struct {
-	//	Sender kademlia.Contact
-	//	Key    string
+	////n := servers[0].Node
+	err = servers[0].SendPing(servers[1])
+	if err != nil {
+		panic(err)
+	}
+	//args := kademlia.Args{
+	//	Sender: n,
+	//	Key:    "hello",
 	//}
 	//call := bsonrpc.Call{
-	//	Method: "methodiswhoa",
-	//	Args:   CallArgs{Sender: n.ToContact(), Key: "hello"},
+	//	Method: "Ping",
+	//	Args:   args,
 	//}
 	//callBytes, err := bson.Marshal(call)
 	//if err != nil {
@@ -209,4 +228,31 @@ func main() {
 	////if err != nil {
 	////	panic(err)
 	////}
+	//type Thing struct {
+	//	One   string
+	//	Two   float64
+	//	Three []kademlia.Node
+	//}
+	//t := Thing{"hello", 10.5, []kademlia.Node{servers[0].Node, servers[1].Node}}
+	//nodes := []kademlia.Node{servers[0].Node, servers[1].Node}
+	//fmt.Println(nodes)
+	//m := bson.M{
+	//	"Message": "pong",
+	//}
+	//mBytes, err := bson.Marshal(m)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//type Response struct {
+	//	Message string
+	//	Nodes   []kademlia.Node
+	//}
+	//var newM Response
+	////newM := bson.M{}
+	//err = bson.Unmarshal(mBytes, &newM)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//fmt.Println(newM)
 }
