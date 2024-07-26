@@ -300,8 +300,6 @@ func Unmarshal(data []byte, obj any) error {
 			if err != nil {
 				return err
 			}
-			fmt.Println("obj:", obj)
-			fmt.Println("m:", m)
 			err = unmarshalStruct(m, obj)
 			return nil
 		}
@@ -340,7 +338,6 @@ func unmarshalStruct(m M, obj any) error {
 			if err != nil {
 				return err
 			}
-			fmt.Println("newStruct:", newStruct, obj)
 			field.Set(reflect.ValueOf(newStruct).Elem())
 		case reflect.Array, reflect.Slice:
 			newArray, err := sliceFromBSONArray(v.(A), valueToSetType)
@@ -382,19 +379,44 @@ func unmarshalStruct(m M, obj any) error {
 	return nil
 }
 
+func StructTypeFromBSONMap(m M) (reflect.Type, error) {
+	var structFields []reflect.StructField
+	var err error
+	for key, val := range m {
+		typ := reflect.TypeOf(val)
+		if typ.Kind() == reflect.Map {
+			typ, err = StructTypeFromBSONMap(val.(M))
+			if err != nil {
+				return nil, err
+			}
+		}
+		structFields = append(structFields, reflect.StructField{
+			Name: key,
+			Type: typ,
+		})
+	}
+	return reflect.StructOf(structFields), nil
+}
+
 func structFromBSONMap(m M, valueType reflect.Type) (any, error) {
 	mBytes, err := Marshal(m)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("valueType", valueType, valueType.Kind())
 	var newStruct any
 	if valueType.Kind() == reflect.Map {
 		var structFields []reflect.StructField
 		for key, val := range m {
+			valType := reflect.TypeOf(val)
+			if reflect.TypeOf(val).Kind() == reflect.Map {
+				valType, err = StructTypeFromBSONMap(val.(M))
+				if err != nil {
+					return nil, err
+				}
+			}
 			structFields = append(structFields, reflect.StructField{
 				Name: key,
-				Type: reflect.TypeOf(val),
+				Type: valType,
 			})
 		}
 		typ := reflect.StructOf(structFields)
@@ -489,7 +511,6 @@ func setStructField(field reflect.Value, v any) error {
 		}
 		field.Set(*newArray)
 	case reflect.Map:
-		fmt.Println("v:", v)
 		newStruct, err := structFromBSONMap(v.(M), vType)
 		if err != nil {
 			return err
