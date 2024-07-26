@@ -16,7 +16,9 @@ type Call struct {
 }
 
 func (c Client) Call(methodName string, args any, reply any) error {
-	bytes, err := bson.Marshal(Call{Method: methodName, Args: args})
+	call := Call{Method: methodName, Args: args}
+
+	bytes, err := bson.Marshal(call)
 	if err != nil {
 		return err
 	}

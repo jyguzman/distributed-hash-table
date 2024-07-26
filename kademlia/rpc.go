@@ -2,7 +2,6 @@ package kademlia
 
 import (
 	"fmt"
-	"go-dht/bson"
 	"go-dht/bsonrpc"
 	"math/big"
 )
@@ -19,6 +18,7 @@ type Contacts struct {
 
 type Response struct {
 	Message string
+	Code    uint8
 	Nodes   []Node
 }
 
@@ -43,11 +43,11 @@ func (s Server) SendPing(other Server) error {
 	return nil
 }
 
-func (s Server) Ping(callArgs Args, reply bson.M) error {
+func (s Server) Ping(callArgs Args, response *Response) error {
 	sender := callArgs.Sender
 	fmt.Printf("PING %s\n", sender)
 	s.updateRoutingTable(sender)
-	reply["Message"] = s.Node.Id.Text(16)
+	response.Message = "PONG from " + s.Node.Id.Text(16)
 	return nil
 }
 
@@ -93,31 +93,38 @@ func (s Server) SendStore(key string, val any, other Server) error {
 	return nil
 }
 
-func (s Server) FindNode(callArgs Args, reply bson.M) error {
+func (s Server) FindNode(callArgs Args, response *Response) error {
 	key := callArgs.Key
 	keyInt, ok := new(big.Int).SetString(key, 16)
 	if !ok {
-		reply["Message"] = "invalid key: " + key
+		response.Code = 0
+		response.Message = "invalid key: " + key
 		return nil
 	}
-	reply["Message"] = "1"
-	reply["Nodes"] = s.routingTable.GetNearest(keyInt)
+	response.Code = 1
+	response.Message = "S"
+	response.Nodes = s.routingTable.GetNearest(keyInt)
 	return nil
 }
 
-func (s Server) FindValue(callArgs Args, reply bson.M) error {
+func (s Server) FindValue(callArgs Args, response *Response) error {
 	key := callArgs.Key
 	keyInt, ok := new(big.Int).SetString(key, 16)
 	if !ok {
-		reply["Message"] = "invalid key: " + key
+		response.Code = 0
+		response.Message = "invalid key: " + key
 		return nil
 	}
-	reply["nodes"] = s.routingTable.GetNearest(keyInt)
+	response.Message = "S"
+	response.Code = 1
+	response.Nodes = s.routingTable.GetNearest(keyInt)
 	return nil
 }
 
-func (s Server) Store(args Args, reply bson.M) error {
+func (s Server) Store(args Args, response *Response) error {
 	s.dataStore[args.Key] = args.Data
+	response.Code = 1
+	response.Message = "S"
 	return nil
 }
 
