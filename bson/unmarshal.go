@@ -162,63 +162,6 @@ func (m *M) UnmarshalBSON(b []byte) error {
 	return nil
 }
 
-func (a *A) UnmarshalWithParent(b []byte, o any) error {
-	r := NewReader(b)
-	raw, err := r.ReadArray()
-	if err != nil {
-		return err
-	}
-
-	for _, val := range *raw {
-		var value any
-		switch val.Type {
-		case Double:
-			v := new(float64)
-			err = UnmarshalValue(val.Type, val.Data, v)
-			value = *v
-		case String:
-			v := new(string)
-			err = UnmarshalValue(val.Type, val.Data, v)
-			value = *v
-		case Int:
-			v := new(int32)
-			err = UnmarshalValue(val.Type, val.Data, v)
-			value = *v
-		case Long:
-			v := new(int64)
-			err = UnmarshalValue(val.Type, val.Data, v)
-			value = *v
-		case Bool:
-			v := new(bool)
-			err = UnmarshalValue(val.Type, val.Data, v)
-			value = *v
-		case Object:
-			switch o.(type) {
-			case *D:
-				v := new(D)
-				err = UnmarshalValue(val.Type, val.Data, v)
-				value = *v
-			case *M:
-				v := M{}
-				err = UnmarshalValue(val.Type, val.Data, &v)
-				value = v
-			default:
-				return fmt.Errorf("cannot unmarshal Object into %T", o)
-			}
-		case Null:
-		case Array:
-			v := new(A)
-			err = UnmarshalValue(val.Type, val.Data, v)
-			value = *v
-		}
-		if err != nil {
-			return err
-		}
-		*a = append(*a, value)
-	}
-	return nil
-}
-
 func (a *A) UnmarshalBSON(b []byte) error {
 	r := NewReader(b)
 	raw, err := r.ReadArray()
@@ -293,8 +236,7 @@ func Unmarshal(data []byte, obj any) error {
 	case *bool:
 		return UnmarshalValue(Bool, data, obj)
 	default:
-		rIndirect := reflect.Indirect(rValue)
-		if rIndirect.Kind() == reflect.Struct {
+		if rType.Elem().Kind() == reflect.Struct {
 			m := M{}
 			err := Unmarshal(data, &m)
 			if err != nil {

@@ -3,7 +3,10 @@ package kademlia
 import (
 	"fmt"
 	"go-dht/bsonrpc"
+	"log"
+	"math"
 	"math/big"
+	"sync"
 )
 
 type Server struct {
@@ -59,32 +62,28 @@ func (s Server) Bootstrap(servers ...Server) {
 	}
 }
 
-//func (s Server) Lookup(key *big.Int) {
-//	kClosestNodes := s.routingTable.GetNearest(key)
-//	fmt.Println("kClosestNodes", kClosestNodes)
-//	alpha, numClose := Options.Alpha, len(kClosestNodes)
-//	limit := int(math.Min(float64(alpha), float64(numClose)))
-//
-//	wg := sync.WaitGroup{}
-//	wg.Add(limit)
-//	var nodes [][]Node
-//	for i := 0; i < limit; i++ {
-//		go func() {
-//			list, err := s.SendFindNode(key, kClosestNodes[i])
-//			if err != nil {
-//				log.Println(err)
-//			}
-//			//heap := &NodeHeap{Key: key}
-//			//for _, tuple := range resp {
-//			//
-//			//}
-//			nodes = append(nodes, list)
-//			wg.Done()
-//		}()
-//	}
-//	wg.Wait()
-//	fmt.Println(nodes)
-//}
+func (s Server) Lookup(key *big.Int) {
+	kClosestNodes := s.routingTable.GetNearest(key)
+	fmt.Println("kClosestNodes", kClosestNodes)
+	alpha, numClose := Options.Alpha, len(kClosestNodes)
+	limit := int(math.Min(float64(alpha), float64(numClose)))
+
+	wg := sync.WaitGroup{}
+	wg.Add(limit)
+	var nodes [][]Node
+	for i := 0; i < limit; i++ {
+		go func() {
+			list, err := s.SendFindNode(key.Text(16), kClosestNodes[i])
+			if err != nil {
+				log.Println(err)
+			}
+			nodes = append(nodes, list)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	fmt.Println("nodes:", nodes)
+}
 
 func (s Server) updateRoutingTable(node Node) {
 	s.routingTable.Add(node)
