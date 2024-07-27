@@ -108,7 +108,7 @@ func (d *D) UnmarshalBSON(b []byte) error {
 			value = nil
 		case Array:
 			v := new(A)
-			err = v.UnmarshalWithParent(val.Data, d)
+			err = v.UnmarshalBSON(val.Data)
 			value = *v
 		}
 		*d = append(*d, Pair{Key: field, Val: value})

@@ -46,17 +46,17 @@ func (s *Server) Listen() {
 		reqBytes, sender, err := s.readRequest()
 		if err != nil {
 			log.Println("Error reading request: " + err.Error())
-			return
+			continue
 		}
 		reqObj, err := s.unmarshalRequest(reqBytes)
 		if err != nil {
 			log.Println("Error parsing request: " + err.Error())
-			return
+			continue
 		}
 		replyBytes, err := s.handleRequest(reqObj)
 		if err != nil {
 			log.Println("Error handling request: " + err.Error())
-			return
+			continue
 		}
 		sendErr := s.sendResponse(replyBytes, sender)
 		if sendErr != nil {
@@ -130,9 +130,10 @@ func (s *Server) Register(receiver any) error {
 	s.service = reflect.ValueOf(receiver)
 	for i := 0; i < t.NumMethod(); i++ {
 		method := t.Method(i)
-		_, exists := s.serviceMethods[method.Name]
+		key := t.Elem().Name() + "." + method.Name
+		_, exists := s.serviceMethods[key]
 		if !exists && isValidMethod(s.service.Type(), method) {
-			s.serviceMethods[method.Name] = &ServiceMethod{
+			s.serviceMethods[key] = &ServiceMethod{
 				Method:    method,
 				ArgType:   method.Type.In(1),
 				ReplyType: method.Type.In(2),

@@ -12,10 +12,6 @@ type Args struct {
 	Data   any
 }
 
-type Contacts struct {
-	Nodes []Node
-}
-
 type Response struct {
 	Message string
 	Code    uint8
@@ -33,7 +29,7 @@ func (s Server) SendPing(other Server) error {
 
 	args := Args{Sender: s.Node}
 	var resp Response
-	err = client.Call("Ping", args, &resp)
+	err = client.Call("Server.Ping", args, &resp)
 	if err != nil {
 		return err
 	}
@@ -47,7 +43,8 @@ func (s Server) Ping(callArgs Args, response *Response) error {
 	sender := callArgs.Sender
 	fmt.Printf("PING %s\n", sender)
 	s.updateRoutingTable(sender)
-	response.Message = "PONG from " + s.Node.Id.Text(16)
+	response.Message = s.Node.Id.Text(16)
+	response.Code = 1
 	return nil
 }
 
@@ -63,12 +60,26 @@ func (s Server) SendFindNode(key string, other Node) ([]Node, error) {
 	}
 
 	var resp Response
-	err = client.Call("FindNode", args, &resp)
+	err = client.Call("Server.FindNode", args, &resp)
 	if err != nil {
 		return nil, err
 	}
 
 	return resp.Nodes, nil
+}
+
+func (s Server) FindNode(callArgs Args, response *Response) error {
+	key := callArgs.Key
+	keyInt, ok := new(big.Int).SetString(key, 16)
+	if !ok {
+		response.Code = 0
+		response.Message = "invalid key: " + key
+		return nil
+	}
+	response.Code = 1
+	response.Message = "S"
+	response.Nodes = s.routingTable.GetNearest(keyInt)
+	return nil
 }
 
 func (s Server) SendStore(key string, val any, other Server) error {
@@ -90,20 +101,6 @@ func (s Server) SendStore(key string, val any, other Server) error {
 	}
 
 	fmt.Println(resp)
-	return nil
-}
-
-func (s Server) FindNode(callArgs Args, response *Response) error {
-	key := callArgs.Key
-	keyInt, ok := new(big.Int).SetString(key, 16)
-	if !ok {
-		response.Code = 0
-		response.Message = "invalid key: " + key
-		return nil
-	}
-	response.Code = 1
-	response.Message = "S"
-	response.Nodes = s.routingTable.GetNearest(keyInt)
 	return nil
 }
 
