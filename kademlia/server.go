@@ -82,7 +82,9 @@ func (s Server) Lookup(key *big.Int) {
 		}()
 	}
 	wg.Wait()
-	fmt.Println("nodes:", nodes)
+	for _, list := range nodes {
+		fmt.Println(list)
+	}
 }
 
 func (s Server) updateRoutingTable(node Node) {

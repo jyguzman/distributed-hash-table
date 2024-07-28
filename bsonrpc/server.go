@@ -9,6 +9,8 @@ import (
 	"strconv"
 )
 
+var Services map[string]Server
+
 type Server struct {
 	host           string
 	port           int
@@ -130,10 +132,10 @@ func (s *Server) Register(receiver any) error {
 	s.service = reflect.ValueOf(receiver)
 	for i := 0; i < t.NumMethod(); i++ {
 		method := t.Method(i)
-		key := t.Elem().Name() + "." + method.Name
-		_, exists := s.serviceMethods[key]
+		methodKey := t.Elem().Name() + "." + method.Name
+		_, exists := s.serviceMethods[methodKey]
 		if !exists && isValidMethod(s.service.Type(), method) {
-			s.serviceMethods[key] = &ServiceMethod{
+			s.serviceMethods[methodKey] = &ServiceMethod{
 				Method:    method,
 				ArgType:   method.Type.In(1),
 				ReplyType: method.Type.In(2),

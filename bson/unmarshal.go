@@ -242,14 +242,14 @@ func Unmarshal(data []byte, obj any) error {
 			if err != nil {
 				return err
 			}
-			err = unmarshalStruct(m, obj)
+			err = unmarshalToStruct(m, obj)
 			return nil
 		}
 		return fmt.Errorf("cannot unmarshal %v into %T", rValue, obj)
 	}
 }
 
-func unmarshalStruct(m M, obj any) error {
+func unmarshalToStruct(m M, obj any) error {
 	rValue := reflect.ValueOf(obj)
 	rType := rValue.Type()
 	if rType.Kind() != reflect.Ptr {

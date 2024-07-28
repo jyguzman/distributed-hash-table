@@ -22,12 +22,14 @@ func (s Server) SendPing(other Server) error {
 	if s.Id() == other.Id() {
 		return nil
 	}
+
 	client, err := s.Contact(other)
 	if err != nil {
 		return err
 	}
 
 	args := Args{Sender: s.Node}
+
 	var resp Response
 	err = client.Call("Server.Ping", args, &resp)
 	if err != nil {
