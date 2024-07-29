@@ -243,6 +243,9 @@ func Unmarshal(data []byte, obj any) error {
 				return err
 			}
 			err = unmarshalToStruct(m, obj)
+			if err != nil {
+				return err
+			}
 			return nil
 		}
 		return fmt.Errorf("cannot unmarshal %v into %T", rValue, obj)

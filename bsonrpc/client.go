@@ -28,7 +28,7 @@ func (c Client) Call(methodName string, args any, reply any) error {
 		return err
 	}
 
-	buf := make([]byte, 1024)
+	buf := make([]byte, 2048)
 	n, _, err := c.conn.ReadFromUDP(buf)
 	if err != nil {
 		return err

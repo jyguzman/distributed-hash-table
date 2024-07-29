@@ -86,6 +86,7 @@ func (s *Server) unmarshalRequest(req []byte) (*Call, error) {
 }
 
 func (s *Server) handleRequest(request *Call) ([]byte, error) {
+
 	serviceMethod, ok := s.serviceMethods[request.Method]
 	if !ok {
 		return nil, fmt.Errorf("no such method: " + request.Method)

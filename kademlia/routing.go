@@ -86,14 +86,14 @@ func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]*KBucket) int 
 		prefix := rn.Bucket.Prefix
 		if prefix == rn.RtOwner.Prefix(len(prefix)) {
 			rn.Split(prefixes)
-			rn.Add(currPos, node, prefixes)
+			return rn.Add(currPos, node, prefixes)
 		}
 	} else {
 		bit := node.Id.Bit(currPos)
 		if bit == 0 {
-			rn.Left.Add(currPos+1, node, prefixes)
+			return rn.Left.Add(currPos+1, node, prefixes)
 		} else {
-			rn.Right.Add(currPos+1, node, prefixes)
+			return rn.Right.Add(currPos+1, node, prefixes)
 		}
 	}
 	return 0

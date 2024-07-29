@@ -4,45 +4,12 @@ import (
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"go-dht/bson"
 	"log"
 	"math/big"
 	"strconv"
 )
-
-type Key big.Int
-
-func (k Key) String() string {
-	return (*big.Int)(&k).Text(16)
-}
-
-func (k Key) FromString(s string, base int) error {
-	i, ok := (*big.Int)(&k).SetString(s, base)
-	if !ok {
-		return errors.New("invalid key")
-	}
-	fmt.Println("I:", i, "k:", k)
-	return nil
-}
-
-func (k Key) MarshalBSON() ([]byte, error) {
-	return bson.Marshal(k.String())
-}
-
-func (k *Key) UnmarshalBSON(data []byte) error {
-	var s string
-	err := bson.Unmarshal(data, &s)
-	if err != nil {
-		return err
-	}
-	_, ok := (*big.Int)(k).SetString(s, 16)
-	if !ok {
-		return errors.New("invalid key")
-	}
-	return nil
-}
 
 type Node struct {
 	Id   *big.Int

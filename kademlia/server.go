@@ -62,21 +62,36 @@ func (s Server) Bootstrap(servers ...Server) {
 	}
 }
 
-func (s Server) Lookup(key *big.Int) {
+func (s Server) TrueLookup(key *big.Int) {
+	lu := NewLookup(s, key)
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	nodes := lu.Execute()
+	wg.Done()
+	//wg.Wait()
+	fmt.Println(nodes)
+	for _, node := range nodes {
+		fmt.Println(node)
+	}
+}
+
+func (s Server) Lookup(key *big.Int) { //} ([]Node, any, error) {
 	kClosestNodes := s.routingTable.GetNearest(key)
-	fmt.Println("kClosestNodes", kClosestNodes)
 	alpha, numClose := Options.Alpha, len(kClosestNodes)
 	limit := int(math.Min(float64(alpha), float64(numClose)))
 
+	var nodes [][]Node
+	sl := NewShortlist(key)
+	sl.Insert(kClosestNodes...)
 	wg := sync.WaitGroup{}
 	wg.Add(limit)
-	var nodes [][]Node
 	for i := 0; i < limit; i++ {
 		go func() {
-			list, err := s.SendFindNode(key.Text(16), kClosestNodes[i])
+			list, err := s.sendFindNode(key.Text(16), kClosestNodes[i])
 			if err != nil {
 				log.Println(err)
 			}
+			sl.Insert(list...)
 			nodes = append(nodes, list)
 			wg.Done()
 		}()
@@ -85,6 +100,7 @@ func (s Server) Lookup(key *big.Int) {
 	for _, list := range nodes {
 		fmt.Println(list)
 	}
+	//return nil, nil, nil
 }
 
 func (s Server) updateRoutingTable(node Node) {
@@ -95,10 +111,27 @@ func (s Server) DisplayRoutingTable() {
 	fmt.Println(s.routingTable)
 }
 
-func (s Server) Put(key string, value any) error {
-	return nil
-}
+//func (s Server) Put(key string, value any) error {
+//	nodes, _, err := s.Lookup(HashToBigInt(GetHash(key)))
+//	if err != nil {
+//		return err
+//	}
+//	for _, n := range nodes {
+//		err = s.sendStore(key, value, n)
+//		if err != nil {
+//			return err
+//		}
+//	}
+//	return nil
+//}
 
 func (s Server) Get(key string) any {
+	//	nodes := s.Lookup(HashToBigInt(GetHash(key)))
+	//	for _, n := range nodes {
+	//		nodes, err := s.SendFindValue(key, val, n)
+	//		if err != nil {
+	//			return err
+	//		}
+	//	}
 	return nil
 }

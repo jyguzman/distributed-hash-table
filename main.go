@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"go-dht/kademlia"
-	"reflect"
 )
 
 func initServers(n int) ([]kademlia.Server, error) {
@@ -20,7 +19,7 @@ func initServers(n int) ([]kademlia.Server, error) {
 }
 
 func main() {
-	servers, err := initServers(10)
+	servers, err := initServers(50)
 	if err != nil {
 		panic(err)
 	}
@@ -38,11 +37,11 @@ func main() {
 		//		panic(err)
 		//	}
 		//}
-		xor := servers[0].Node.Xor(servers[i].Node)
-		text := xor.Text(2)
-		fmt.Println(servers[0].Node.Port, "0 id:", servers[0].Id().Text(2))
-		fmt.Println(servers[i].Node.Port, "id  :", servers[i].Node.Prefix(5))
-		fmt.Println(servers[i].Node.Port, "xor :", text)
+		//xor := servers[0].Node.Xor(servers[i].Node)
+		//text := xor.Text(2)
+		//fmt.Println(servers[0].Node.Port, "0 id:", servers[0].Id().Text(2))
+		//fmt.Println(servers[i].Node.Port, "id  :", servers[i].Node.Prefix(5))
+		//fmt.Println(servers[i].Node.Port, "xor :", text)
 
 		//fmt.Println(xor.Bit(0), xor.Bit(1), xor.Bit(2), xor.Bit(3), len(text), text[0:5])
 		for j := i + 1; j < len(servers); j++ {
@@ -53,12 +52,13 @@ func main() {
 		}
 	}
 	servers[2].DisplayRoutingTable()
-	servers[0].Lookup(servers[0].Id())
+	//wg := new(sync.WaitGroup)
+	//wg.Add(50)
+	//
+	//for i := 0; i < len(servers); i++ {
+	servers[37].TrueLookup(servers[10].Id())
+	//	wg.Done()
+	//}
+	//wg.Wait()
 
-	var k kademlia.Key
-	err = k.FromString("790f5ea8d47ea50879916d5835ecb1e0709c18fc", 16)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(k, reflect.TypeOf(k))
 }
