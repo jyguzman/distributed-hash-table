@@ -9,8 +9,6 @@ import (
 	"strconv"
 )
 
-var Services map[string]Server
-
 type Server struct {
 	host           string
 	port           int

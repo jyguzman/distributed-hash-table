@@ -17,7 +17,7 @@ type RTNode struct {
 
 func NewRTNode(owner Node) *RTNode {
 	return &RTNode{
-		Bucket:  NewKBucket(""),
+		Bucket:  NewKBucket(owner, ""),
 		Left:    nil,
 		Right:   nil,
 		K:       Options.BucketCapacity,
@@ -53,17 +53,17 @@ func (rn *RTNode) String() string {
 
 func (rn *RTNode) Split(prefixes map[string]*KBucket) {
 	prfx := rn.Prefix
-	zeroBucket, oneBucket := NewKBucket(prfx+"0"), NewKBucket(prfx+"1")
-	ptr, pLen := rn.Bucket.Head, len(prfx)
+	zeroBucket, oneBucket := NewKBucket(rn.RtOwner, prfx+"0"), NewKBucket(rn.RtOwner, prfx+"1")
+	ptr, pLen := rn.Bucket.Tail, len(prfx)
 	for ptr != nil {
-		currId := ptr.Node.Id
+		currId := ptr.Data.Id
 		bit := currId.Bit(pLen)
 		if bit == 0 {
-			zeroBucket.Add(ptr.Node)
+			zeroBucket.Add(ptr.Data)
 		} else {
-			oneBucket.Add(ptr.Node)
+			oneBucket.Add(ptr.Data)
 		}
-		ptr = ptr.Next
+		ptr = ptr.Prev
 	}
 	rn.Bucket = nil
 	delete(prefixes, prfx)
@@ -130,12 +130,12 @@ func (rt *RoutingTable) GetNearest(key *big.Int) []Node {
 	nodeHeap := &NodeHeap{Key: key}
 	heap.Init(nodeHeap)
 	for _, bucket := range rt.BucketPrefixes {
-		ptr := bucket.Head
+		ptr := bucket.Tail
 		for ptr != nil {
-			if ptr.Node.Id.Cmp(key) != 0 {
-				heap.Push(nodeHeap, ptr.Node)
+			if ptr.Data.Id.Cmp(key) != 0 {
+				heap.Push(nodeHeap, ptr.Data)
 			}
-			ptr = ptr.Next
+			ptr = ptr.Prev
 		}
 	}
 	var nodes []Node

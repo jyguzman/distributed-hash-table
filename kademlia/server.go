@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go-dht/bsonrpc"
 	"log"
-	"math"
 	"math/big"
 	"sync"
 )
@@ -62,7 +61,7 @@ func (s Server) Bootstrap(servers ...Server) {
 	}
 }
 
-func (s Server) TrueLookup(key *big.Int) {
+func (s Server) Lookup(key *big.Int) []Node {
 	lu := NewLookup(s, key)
 	wg := new(sync.WaitGroup)
 	wg.Add(1)
@@ -73,34 +72,7 @@ func (s Server) TrueLookup(key *big.Int) {
 	for _, node := range nodes {
 		fmt.Println(node)
 	}
-}
-
-func (s Server) Lookup(key *big.Int) { //} ([]Node, any, error) {
-	kClosestNodes := s.routingTable.GetNearest(key)
-	alpha, numClose := Options.Alpha, len(kClosestNodes)
-	limit := int(math.Min(float64(alpha), float64(numClose)))
-
-	var nodes [][]Node
-	sl := NewShortlist(key)
-	sl.Insert(kClosestNodes...)
-	wg := sync.WaitGroup{}
-	wg.Add(limit)
-	for i := 0; i < limit; i++ {
-		go func() {
-			list, err := s.sendFindNode(key.Text(16), kClosestNodes[i])
-			if err != nil {
-				log.Println(err)
-			}
-			sl.Insert(list...)
-			nodes = append(nodes, list)
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-	for _, list := range nodes {
-		fmt.Println(list)
-	}
-	//return nil, nil, nil
+	return nodes
 }
 
 func (s Server) updateRoutingTable(node Node) {
@@ -111,19 +83,15 @@ func (s Server) DisplayRoutingTable() {
 	fmt.Println(s.routingTable)
 }
 
-//func (s Server) Put(key string, value any) error {
-//	nodes, _, err := s.Lookup(HashToBigInt(GetHash(key)))
-//	if err != nil {
-//		return err
-//	}
-//	for _, n := range nodes {
-//		err = s.sendStore(key, value, n)
-//		if err != nil {
-//			return err
-//		}
-//	}
-//	return nil
-//}
+func (s Server) Put(key string, value any) {
+	nodes := s.Lookup(HashToBigInt(GetHash(key)))
+	for _, n := range nodes {
+		err := s.sendStore(key, value, n)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+}
 
 func (s Server) Get(key string) any {
 	//	nodes := s.Lookup(HashToBigInt(GetHash(key)))
@@ -134,4 +102,9 @@ func (s Server) Get(key string) any {
 	//		}
 	//	}
 	return nil
+}
+
+func (s Server) Has(key string) bool {
+	val, ok := s.dataStore[key]
+	return ok && val != nil
 }

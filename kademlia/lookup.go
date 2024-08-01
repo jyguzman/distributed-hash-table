@@ -2,7 +2,6 @@ package kademlia
 
 import (
 	"container/heap"
-	"fmt"
 	"log"
 	"math/big"
 	"sync"
@@ -12,6 +11,7 @@ type Lookup struct {
 	initiator Server
 	key       *big.Int
 	shortlist *Shortlist
+	m         sync.Mutex
 	rounds    int
 	value     any
 }
@@ -24,51 +24,57 @@ func NewLookup(initiator Server, key *big.Int) *Lookup {
 	}
 }
 
+func (lu *Lookup) mark(n Node) {
+	lu.m.Lock()
+	lu.shortlist.queriedNodes.Add(n)
+	lu.m.Unlock()
+}
+
+func (lu *Lookup) hasBeenQueried(n Node) bool {
+	lu.m.Lock()
+	defer lu.m.Unlock()
+	return lu.shortlist.queriedNodes.Has(n)
+}
+
 func (lu *Lookup) Execute() []Node {
-	initialNodes := lu.initiator.routingTable.GetNearest(lu.key)
-	lu.shortlist.Insert(initialNodes...)
+	initNodes := lu.initiator.routingTable.GetNearest(lu.key)
+	lu.shortlist.Insert(initNodes...)
 	numSeenNodes := lu.shortlist.Len()
 
 	for {
-		lu.queryNodes()
+		lu.sendRequests(lu.shortlist.GetNextAlpha())
 		numNewNodes := lu.shortlist.Len() - numSeenNodes
 		if numNewNodes == 0 || lu.rounds == Options.MaxIterations {
 			break
 		}
 		numSeenNodes = lu.shortlist.Len()
 		lu.rounds++
-		fmt.Println("seen:", numSeenNodes)
 	}
+
 	return lu.shortlist.Closest()
 }
 
-func (lu *Lookup) queryNodes() {
-	alpha := Options.Alpha
-	wg := sync.WaitGroup{}
-	wg.Add(alpha)
-	for i := 0; i < alpha; i++ {
-		go func() {
-			var p Node
-			for _, n := range lu.shortlist.heap.Nodes {
-				if !lu.shortlist.queriedNodes.Has(n) {
-					p = n
-					break
+func (lu *Lookup) sendRequests(nodes []Node) {
+	m, wg := sync.Mutex{}, sync.WaitGroup{}
+	for _, n := range nodes {
+		wg.Add(1)
+		go func(n Node) {
+			defer wg.Done()
+			if !lu.hasBeenQueried(n) {
+				list, err := lu.initiator.sendFindNode(lu.key.Text(16), n)
+				if err != nil {
+					log.Println(err)
+					lu.shortlist.Remove(n)
+					return
 				}
+				m.Lock()
+				lu.mark(n)
+				lu.shortlist.Insert(list...)
+				m.Unlock()
 			}
-			list, err := lu.initiator.sendFindNode(lu.key.Text(16), p)
-			if err != nil {
-				log.Println(err)
-				lu.shortlist.Remove(p)
-			}
-
-			lu.shortlist.queriedNodes.Add(p)
-			lu.shortlist.Insert(list...)
-			wg.Done()
-		}()
+		}(n)
 	}
-
 	wg.Wait()
-
 }
 
 type NodeSet map[string]bool
@@ -94,6 +100,8 @@ type Shortlist struct {
 	heap         *NodeHeap
 	queriedNodes *NodeSet
 	seenNodes    *NodeSet
+	candidates   []Node
+	index        int
 }
 
 func NewShortlist(key *big.Int) *Shortlist {
@@ -102,16 +110,20 @@ func NewShortlist(key *big.Int) *Shortlist {
 		heap:         &NodeHeap{Key: key},
 		seenNodes:    &NodeSet{},
 		queriedNodes: &NodeSet{},
+		candidates:   []Node{},
+		index:        0,
 	}
 }
 
 func (sl *Shortlist) Insert(node ...Node) {
 	sl.m.Lock()
 	defer sl.m.Unlock()
+
 	for _, n := range node {
 		if !sl.seenNodes.Has(n) {
 			sl.seenNodes.Add(n)
 			heap.Push(sl.heap, n)
+			sl.candidates = append(sl.candidates, n)
 		}
 	}
 }
@@ -119,8 +131,25 @@ func (sl *Shortlist) Insert(node ...Node) {
 func (sl *Shortlist) Remove(node Node) {
 	sl.m.Lock()
 	defer sl.m.Unlock()
+
 	sl.seenNodes.Remove(node)
 	sl.queriedNodes.Remove(node)
+}
+
+func (sl *Shortlist) GetNextAlpha() []Node {
+	sl.m.Lock()
+	defer sl.m.Unlock()
+
+	var nodes []Node
+	end := sl.index + Options.Alpha
+	for i := sl.index; sl.index < len(sl.candidates) && i < end; i++ {
+		if !sl.queriedNodes.Has(sl.candidates[i]) {
+			nodes = append(nodes, sl.candidates[i])
+			sl.index++
+		}
+	}
+
+	return nodes
 }
 
 func (sl *Shortlist) Closest() []Node {
@@ -139,6 +168,9 @@ func (sl *Shortlist) Closest() []Node {
 }
 
 func (sl *Shortlist) Len() int {
+	sl.m.Lock()
+	defer sl.m.Unlock()
+
 	return len(*sl.seenNodes)
 }
 
