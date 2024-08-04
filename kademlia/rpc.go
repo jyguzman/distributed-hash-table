@@ -10,6 +10,7 @@ type Args struct {
 	Sender Node
 	Key    string
 	Data   any
+	RpcId  string
 }
 
 type Response struct {
@@ -71,11 +72,13 @@ func (s Server) sendFindNode(key string, other Node) ([]Node, error) {
 		return nil, err
 	}
 
+	s.updateRoutingTable(other)
+
 	return resp.Nodes, nil
 }
 
-func (s Server) FindNode(callArgs Args, response *Response) error {
-	key := callArgs.Key
+func (s Server) FindNode(args Args, response *Response) error {
+	key := args.Key
 	keyInt, ok := new(big.Int).SetString(key, 16)
 	if !ok {
 		response.Code = 0
@@ -86,6 +89,7 @@ func (s Server) FindNode(callArgs Args, response *Response) error {
 	response.Code = 1
 	response.Message = "S"
 	response.Nodes = s.routingTable.GetNearest(keyInt)
+	s.updateRoutingTable(args.Sender)
 	fmt.Println("got something", response.Nodes)
 	return nil
 }
@@ -112,6 +116,8 @@ func (s Server) sendStore(key string, val any, other Node) error {
 		return err
 	}
 
+	s.updateRoutingTable(other)
+
 	fmt.Println(resp)
 	return nil
 }
@@ -120,6 +126,7 @@ func (s Server) Store(args Args, response *Response) error {
 	s.dataStore[args.Key] = args.Data
 	response.Code = 1
 	response.Message = "S"
+	s.updateRoutingTable(args.Sender)
 	return nil
 }
 

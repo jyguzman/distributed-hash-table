@@ -1,12 +1,9 @@
 package kademlia
 
 import (
-	"crypto/rand"
-	"crypto/sha1"
-	"encoding/hex"
 	"fmt"
 	"go-dht/bson"
-	"log"
+	"go-dht/pkg/util"
 	"math/big"
 	"strconv"
 )
@@ -25,8 +22,8 @@ type Contact struct {
 
 func NewNode(host string, port int, id *big.Int) Node {
 	if id == nil {
-		addressHash := GetHash(host + ":" + strconv.Itoa(port))
-		id = HashToBigInt(addressHash)
+		addressHash := util.GetHash(host + ":" + strconv.Itoa(port))
+		id = util.HashToBigInt(addressHash)
 	}
 	return Node{Host: host, Port: port, Id: id}
 }
@@ -74,30 +71,4 @@ func (n Node) Prefix(length int) string {
 		pre += strconv.Itoa(int(n.Id.Bit(i)))
 	}
 	return pre
-}
-
-func RandNumber() *big.Int {
-	limit := new(big.Int).Lsh(big.NewInt(1), 160)
-	random, err := rand.Int(rand.Reader, limit)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return random
-}
-
-func GetHash(item string) string {
-	hasher := sha1.New()
-	_, err := hasher.Write([]byte(item))
-	if err != nil {
-		log.Fatal(err)
-	}
-	return hex.EncodeToString(hasher.Sum(nil))
-}
-
-func HashToBigInt(hash string) *big.Int {
-	hashBytes, err := hex.DecodeString(hash)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return new(big.Int).SetBytes(hashBytes)
 }

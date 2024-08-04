@@ -3,6 +3,7 @@ package kademlia
 import (
 	"fmt"
 	"go-dht/bsonrpc"
+	"go-dht/pkg/util"
 	"log"
 	"math/big"
 	"sync"
@@ -53,12 +54,15 @@ func (s Server) Prefixes() map[string]*KBucket {
 	return s.routingTable.BucketPrefixes
 }
 
-func (s Server) Bootstrap(servers ...Server) {
-	for _, server := range servers {
-		if server.Node.Id != s.Node.Id {
-			fmt.Println(s.SendPing(server))
-		}
+func (s Server) Bootstrap(bootstrapper Server) {
+	closestToBootstrapper, err := s.SendFindNode(s.Node.Id.Text(16), bootstrapper)
+	if err != nil {
+		log.Printf("could not bootstrap %s %s", bootstrapper.Node, err)
 	}
+	for _, node := range closestToBootstrapper {
+		s.updateRoutingTable(node)
+	}
+	s.Lookup(s.Node.Id)
 }
 
 func (s Server) Lookup(key *big.Int) []Node {
@@ -84,7 +88,7 @@ func (s Server) DisplayRoutingTable() {
 }
 
 func (s Server) Put(key string, value any) {
-	nodes := s.Lookup(HashToBigInt(GetHash(key)))
+	nodes := s.Lookup(util.HashToBigInt(util.GetHash(key)))
 	for _, n := range nodes {
 		err := s.sendStore(key, value, n)
 		if err != nil {
@@ -94,7 +98,7 @@ func (s Server) Put(key string, value any) {
 }
 
 func (s Server) Get(key string) any {
-	//	nodes := s.Lookup(HashToBigInt(GetHash(key)))
+	//	nodes := s.Lookup(util.HashToBigInt(util.GetHash(key)))
 	//	for _, n := range nodes {
 	//		nodes, err := s.SendFindValue(key, val, n)
 	//		if err != nil {

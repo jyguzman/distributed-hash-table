@@ -27,6 +27,7 @@ func NewLookup(initiator Server, key *big.Int) *Lookup {
 func (lu *Lookup) mark(n Node) {
 	lu.m.Lock()
 	lu.shortlist.queriedNodes.Add(n)
+	lu.initiator.updateRoutingTable(n)
 	lu.m.Unlock()
 }
 

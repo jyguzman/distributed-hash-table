@@ -112,3 +112,7 @@ func (kb *KBucket) contains(n Node) bool {
 	}
 	return false
 }
+
+func (kb *KBucket) IsUnderpopulated() bool {
+	return kb.Size <= Options.BucketCapacity/2
+}
