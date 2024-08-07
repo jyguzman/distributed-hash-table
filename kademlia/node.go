@@ -61,6 +61,10 @@ func (n Node) String() string {
 	return fmt.Sprintf("(%s:%d %s)", n.Host, n.Port, n.Id.Text(16))
 }
 
+func (n Node) Equals(other Node) bool {
+	return n.String() == other.String()
+}
+
 func (n Node) Xor(other Node) *big.Int {
 	return new(big.Int).Xor(n.Id, other.Id)
 }
@@ -68,7 +72,7 @@ func (n Node) Xor(other Node) *big.Int {
 func (n Node) Prefix(length int) string {
 	pre := ""
 	for i := 0; i < length; i++ {
-		pre += strconv.Itoa(int(n.Id.Bit(i)))
+		pre += strconv.Itoa(int(n.Id.Bit(159 - i)))
 	}
 	return pre
 }

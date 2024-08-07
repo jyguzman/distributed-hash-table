@@ -50,19 +50,26 @@ func (s Server) Listen() {
 	go s.rpcServer.Listen()
 }
 
-func (s Server) Prefixes() map[string]*KBucket {
+func (s Server) Buckets() map[string]*KBucket {
 	return s.routingTable.BucketPrefixes
 }
 
 func (s Server) Bootstrap(bootstrapper Server) {
 	closestToBootstrapper, err := s.SendFindNode(s.Node.Id.Text(16), bootstrapper)
 	if err != nil {
-		log.Printf("could not bootstrap %s %s", bootstrapper.Node, err)
+		log.Printf("could not bootstrap %s against %s %s", s.Node, bootstrapper.Node, err)
+		return
 	}
-	for _, node := range closestToBootstrapper {
-		s.updateRoutingTable(node)
-	}
+	s.updateRoutingTable(closestToBootstrapper...)
 	s.Lookup(s.Node.Id)
+}
+
+func (s Server) Refresh(node *Node) {
+	for _, bucket := range s.Buckets() {
+		if bucket.shouldBeRefreshed() {
+			s.Lookup(bucket.randomNum())
+		}
+	}
 }
 
 func (s Server) Lookup(key *big.Int) []Node {
@@ -79,8 +86,14 @@ func (s Server) Lookup(key *big.Int) []Node {
 	return nodes
 }
 
-func (s Server) updateRoutingTable(node Node) {
-	s.routingTable.Add(node)
+func (s Server) updateRoutingTable(node ...Node) {
+	var m sync.Mutex
+	m.Lock()
+	defer m.Unlock()
+
+	for _, n := range node {
+		s.routingTable.Add(n)
+	}
 }
 
 func (s Server) DisplayRoutingTable() {

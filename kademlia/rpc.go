@@ -19,6 +19,10 @@ type Response struct {
 	Nodes   []Node
 }
 
+type NodeResults struct {
+	Nodes []Node
+}
+
 func (s Server) SendPing(other Server) error {
 	if s.Id() == other.Id() {
 		return nil
@@ -38,13 +42,13 @@ func (s Server) SendPing(other Server) error {
 	}
 
 	s.updateRoutingTable(other.Node)
-	fmt.Println("PONG", resp)
+	//fmt.Println("PONG", resp)
 	return nil
 }
 
 func (s Server) Ping(callArgs Args, response *Response) error {
 	sender := callArgs.Sender
-	fmt.Printf("PING %s\n", sender)
+	//fmt.Printf("PING %s\n", sender)
 	s.updateRoutingTable(sender)
 	response.Message = s.Node.Id.Text(16)
 	response.Code = 1
@@ -77,17 +81,17 @@ func (s Server) sendFindNode(key string, other Node) ([]Node, error) {
 	return resp.Nodes, nil
 }
 
-func (s Server) FindNode(args Args, response *Response) error {
+func (s Server) FindNode(args Args, response *NodeResults) error {
 	key := args.Key
 	keyInt, ok := new(big.Int).SetString(key, 16)
 	if !ok {
-		response.Code = 0
-		response.Message = "invalid key: " + key
+		//response.Code = 0
+		//response.Message = "invalid key: " + key
 		return nil
 	}
 
-	response.Code = 1
-	response.Message = "S"
+	//response.Code = 1
+	//response.Message = "S"
 	response.Nodes = s.routingTable.GetNearest(keyInt)
 	s.updateRoutingTable(args.Sender)
 	fmt.Println("got something", response.Nodes)

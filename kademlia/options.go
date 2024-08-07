@@ -3,15 +3,15 @@ package kademlia
 type KadOptions struct {
 	BucketCapacity int
 	Alpha          int
-	NodeRefresh    int
-	NodeExpiration int
+	TRefresh       int
+	TExpiration    int
 	MaxIterations  int
 }
 
 var Options = KadOptions{
-	BucketCapacity: 8,
+	BucketCapacity: 3,
 	Alpha:          3,
-	NodeRefresh:    60 * 60,
-	NodeExpiration: 60 * 60,
+	TRefresh:       60 * 60,
+	TExpiration:    60 * 60,
 	MaxIterations:  20,
 }

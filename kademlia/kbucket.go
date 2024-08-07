@@ -2,6 +2,9 @@ package kademlia
 
 import (
 	"fmt"
+	"math/big"
+	"math/rand"
+	"time"
 )
 
 type ListNode struct {
@@ -17,10 +20,16 @@ type KBucket struct {
 	Tail     *ListNode
 	Size     int
 	Prefix   string
+	lastUsed time.Time
 }
 
 func NewKBucket(owner Node, prefix string) *KBucket {
-	return &KBucket{Owner: owner, Capacity: Options.BucketCapacity, Prefix: prefix}
+	return &KBucket{
+		Owner:    owner,
+		Capacity: Options.BucketCapacity,
+		Prefix:   prefix,
+		lastUsed: time.Now(),
+	}
 }
 
 func (kb *KBucket) String() string {
@@ -44,6 +53,7 @@ func (kb *KBucket) Add(n Node) {
 	if kb.Capacity == kb.Size {
 		return
 	}
+	kb.lastUsed = time.Now()
 	if kb.Head == nil {
 		kb.Head = &ListNode{Data: n}
 		kb.Tail = kb.Head
@@ -92,7 +102,7 @@ func (kb *KBucket) remove(n Node) {
 	}
 	ptr := kb.Head
 	for ptr != nil {
-		if ptr.Data.Id.Cmp(n.Id) == 0 {
+		if ptr.Data.Equals(n) {
 			ptr.Prev.Next = ptr.Next
 			ptr.Next.Prev = ptr.Prev
 			kb.Size--
@@ -105,7 +115,7 @@ func (kb *KBucket) remove(n Node) {
 func (kb *KBucket) contains(n Node) bool {
 	ptr := kb.Head
 	for ptr != nil {
-		if ptr.Data.Id.Cmp(n.Id) == 0 {
+		if ptr.Data.Equals(n) {
 			return true
 		}
 		ptr = ptr.Next
@@ -113,6 +123,26 @@ func (kb *KBucket) contains(n Node) bool {
 	return false
 }
 
-func (kb *KBucket) IsUnderpopulated() bool {
+func (kb *KBucket) isUnderpopulated() bool {
 	return kb.Size <= Options.BucketCapacity/2
+}
+
+func (kb *KBucket) wasRecentlyUsed() bool {
+	return int(time.Since(kb.lastUsed).Seconds()) <= Options.TRefresh
+}
+
+func (kb *KBucket) shouldBeRefreshed() bool {
+	return !kb.wasRecentlyUsed() || kb.isUnderpopulated()
+}
+
+func (kb *KBucket) randomNum() *big.Int {
+	curr := kb.Prefix
+	for i := len(curr); i < 160; i++ {
+		curr += []string{"0", "1"}[rand.Intn(2)]
+	}
+	val, ok := new(big.Int).SetString(curr, 2)
+	if !ok {
+		return nil
+	}
+	return val
 }

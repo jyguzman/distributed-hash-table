@@ -57,7 +57,7 @@ func (rn *RTNode) Split(prefixes map[string]*KBucket) {
 	ptr, pLen := rn.Bucket.Tail, len(prfx)
 	for ptr != nil {
 		currId := ptr.Data.Id
-		bit := currId.Bit(pLen)
+		bit := currId.Bit(159 - pLen)
 		if bit == 0 {
 			zeroBucket.Add(ptr.Data)
 		} else {
@@ -89,7 +89,7 @@ func (rn *RTNode) Add(currPos int, node Node, prefixes map[string]*KBucket) int 
 			return rn.Add(currPos, node, prefixes)
 		}
 	} else {
-		bit := node.Id.Bit(currPos)
+		bit := node.Id.Bit(159 - currPos)
 		if bit == 0 {
 			return rn.Left.Add(currPos+1, node, prefixes)
 		} else {
