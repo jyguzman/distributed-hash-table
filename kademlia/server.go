@@ -62,9 +62,11 @@ func (s Server) Bootstrap(bootstrapper Server) {
 	}
 	s.updateRoutingTable(closestToBootstrapper...)
 	s.Lookup(s.Node.Id)
+	// find buckets farher away
+	//
 }
 
-func (s Server) Refresh(node *Node) {
+func (s Server) Refresh() {
 	for _, bucket := range s.Buckets() {
 		if bucket.shouldBeRefreshed() {
 			s.Lookup(bucket.randomNum())
@@ -73,6 +75,9 @@ func (s Server) Refresh(node *Node) {
 }
 
 func (s Server) Lookup(key *big.Int) []Node {
+	if key == nil {
+		return nil
+	}
 	lu := NewLookup(s, key)
 	wg := new(sync.WaitGroup)
 	wg.Add(1)
@@ -111,6 +116,9 @@ func (s Server) Put(key string, value any) {
 }
 
 func (s Server) Get(key string) any {
+	if s.Has(key) {
+		return s.dataStore[key]
+	}
 	//	nodes := s.Lookup(util.HashToBigInt(util.GetHash(key)))
 	//	for _, n := range nodes {
 	//		nodes, err := s.SendFindValue(key, val, n)
